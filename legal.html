@@ -1,0 +1,594 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Información Legal – Sport Massage in Fuengirola</title>
+  <meta name="robots" content="noindex">
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400&family=Jost:wght@200;300;400;500&display=swap" rel="stylesheet">
+
+  <style>
+    :root {
+      --navy:       #0b2035;
+      --navy-mid:   #132d4a;
+      --teal:       #2a7f8a;
+      --gold:       #c9a96e;
+      --cream:      #f7f4ef;
+      --white:      #ffffff;
+      --text:       #1a1a1a;
+      --text-muted: #5a5a5a;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; }
+
+    body {
+      font-family: 'Jost', sans-serif;
+      background: var(--cream);
+      color: var(--text);
+      overflow-x: hidden;
+      padding-top: 90px;
+    }
+
+    /* ── Header ─────────────────────────────────────────────── */
+    header {
+      position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 18px 48px;
+      background: rgba(11,32,53,0.92);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid rgba(201,169,110,0.2);
+    }
+    .logo-wrap { display: flex; align-items: center; gap: 14px; }
+    .logo-wrap img { height: 46px; width: 46px; object-fit: contain; border-radius: 8px; }
+    .logo-name {
+      font-family: 'Cormorant Garamond', serif; color: var(--white);
+      font-size: 1.05rem; font-weight: 300; letter-spacing: 0.04em; line-height: 1.3;
+    }
+    .logo-name span {
+      display: block; color: var(--gold); font-size: 0.72rem; letter-spacing: 0.18em;
+      text-transform: uppercase; font-family: 'Jost', sans-serif; font-weight: 200;
+    }
+    .header-right { display: flex; align-items: center; gap: 28px; }
+    nav { display: flex; gap: 28px; }
+    nav a {
+      color: rgba(255,255,255,0.75); text-decoration: none; font-size: 0.78rem;
+      font-weight: 300; letter-spacing: 0.12em; text-transform: uppercase; transition: color 0.2s;
+    }
+    nav a:hover { color: var(--gold); }
+    .lang { display: flex; gap: 8px; }
+    .lang button {
+      background: none; border: none; cursor: pointer;
+      font-size: 20px; opacity: 0.5; transition: opacity 0.2s;
+    }
+    .lang button:hover, .lang button.active { opacity: 1; }
+
+    /* ── Footer ─────────────────────────────────────────────── */
+    footer {
+      background: var(--navy); padding: 48px 60px;
+      display: flex; align-items: center; justify-content: space-between;
+      border-top: 1px solid rgba(201,169,110,0.15);
+    }
+    .footer-left {
+      font-family: 'Cormorant Garamond', serif; font-size: 1.3rem;
+      font-weight: 300; color: rgba(255,255,255,0.6);
+    }
+    .footer-right {
+      font-size: 0.72rem; letter-spacing: 0.15em;
+      color: rgba(255,255,255,0.3); text-transform: uppercase;
+    }
+    .footer-right a { color: var(--gold); text-decoration: none; }
+
+    /* ── Studio bar ──────────────────────────────────────────── */
+    .studio-bar {
+      background: #07182a;
+      border-top: 1px solid rgba(201,169,110,0.12);
+      padding: .6rem 24px;
+      display: flex; align-items: center; justify-content: center; gap: 10px;
+    }
+    .studio-bar__label {
+      font-size: .62rem; font-weight: 400;
+      letter-spacing: .12em; text-transform: uppercase;
+      color: rgba(255,255,255,0.28);
+    }
+    .studio-bar__link {
+      font-size: .62rem; font-weight: 600;
+      letter-spacing: .12em; text-transform: uppercase;
+      color: rgba(201,169,110,0.65); text-decoration: none; transition: color .15s;
+    }
+    .studio-bar__link:hover { color: var(--gold); }
+
+    /* ── Legal core styles ───────────────────────────────────── */
+    .legal-wrap {
+      --_primary:      var(--teal);
+      --_ink:          var(--text);
+      --_ink-light:    var(--text-muted);
+      --_muted:        #718096;
+      --_border:       rgba(11,32,53,0.12);
+      --_border-light: rgba(11,32,53,0.06);
+      --_radius:       4px;
+      --_shadow:       0 1px 3px rgba(0,0,0,.08);
+      --_font-display: 'Cormorant Garamond', serif;
+
+      max-width: 760px;
+      margin: 2.5rem auto 4rem;
+      padding: 0 1.5rem;
+    }
+    .legal-title {
+      font-family: var(--_font-display);
+      font-size: clamp(1.8rem, 4vw, 2.5rem);
+      font-weight: 700; line-height: 1.1; letter-spacing: -.02em;
+      color: var(--_ink); margin-bottom: 2rem;
+      padding-bottom: 1rem; border-bottom: 1px solid var(--_border);
+    }
+    .legal-index {
+      background: #f8fafc; border: 1px solid var(--_border);
+      border-radius: var(--_radius); padding: 1.2rem 1.5rem;
+      margin-bottom: 2.5rem; box-shadow: var(--_shadow);
+    }
+    .legal-index > p {
+      font-size: .75rem; font-weight: 700; letter-spacing: .15em;
+      text-transform: uppercase; color: var(--_muted); margin-bottom: .6rem;
+    }
+    .legal-index ol {
+      list-style: none; padding: 0; margin: 0;
+      display: flex; flex-direction: column; gap: .3rem;
+    }
+    .legal-index ol li a {
+      color: var(--_primary); font-weight: 600; font-size: .95rem; text-decoration: none;
+    }
+    .legal-index ol li a:hover { text-decoration: underline; }
+    .legal-section { margin-bottom: 3rem; scroll-margin-top: 90px; }
+    .legal-section h2 {
+      font-family: var(--_font-display); font-size: 1.4rem;
+      font-weight: 700; letter-spacing: -.01em; color: var(--_ink);
+      margin-bottom: 1.2rem; padding-bottom: .5rem;
+      border-bottom: 2px solid var(--_primary);
+    }
+    .legal-section h3 { font-size: 1rem; font-weight: 700; color: var(--_ink); margin: 1.4rem 0 .5rem; }
+    .legal-section p, .legal-section li {
+      font-size: .95rem; color: var(--_ink-light); line-height: 1.75; margin-bottom: .7rem;
+    }
+    .legal-section ul, .legal-section ol { padding-left: 1.3rem; margin-bottom: .7rem; }
+    .legal-section li { margin-bottom: .3rem; }
+    .legal-section a { color: var(--_primary); text-decoration: underline; }
+    .legal-table { width: 100%; border-collapse: collapse; margin: 1rem 0 1.4rem; font-size: .92rem; }
+    .legal-table tr { border-bottom: 1px solid var(--_border-light); }
+    .legal-table td { padding: .55rem .5rem; vertical-align: top; color: var(--_ink-light); line-height: 1.5; }
+    .legal-table td:first-child {
+      font-weight: 600; color: var(--_ink); white-space: nowrap;
+      padding-right: 1.2rem; min-width: 140px;
+    }
+    .legal-rellenar {
+      background: #fff7e6; border-radius: 3px; padding: .1em .35em;
+      font-size: .85em; font-weight: 600; color: #9a6700;
+    }
+
+    /* ── Responsive ─────────────────────────────────────────── */
+    @media (max-width: 900px) {
+      header { padding: 14px 20px; flex-direction: column; align-items: flex-start; gap: 14px; }
+      .header-right { width: 100%; justify-content: space-between; }
+      nav { flex-wrap: wrap; gap: 12px 18px; }
+      nav a { font-size: 0.72rem; }
+      body { padding-top: 140px; }
+      footer { flex-direction: column; gap: 12px; text-align: center; padding: 36px 24px; }
+    }
+    @media (max-width: 600px) {
+      body { padding-top: 160px; }
+      .legal-table { display: block; overflow-x: auto; }
+      .studio-bar { flex-direction: column; gap: 2px; }
+    }
+
+    /* ── cookie banner – base + massage palette ───────────── */
+    .cookie-banner-wrapper {
+      position: fixed; bottom: 20px; right: 20px;
+      width: 100%; max-width: 380px; z-index: 999999;
+      display: none; font-family: "Jost", sans-serif;
+    }
+    .cookie-banner-card {
+      background: #fcfaf6;
+      padding: 24px;
+      border-radius: 4px;
+      box-shadow: 0 8px 32px rgba(11,32,53,0.14);
+      border: 1px solid rgba(11,32,53,0.08);
+      text-align: center;
+    }
+    .cookie-banner-card h2 {
+      font-family: "Cormorant Garamond", serif;
+      font-weight: 400; font-size: 1.25rem;
+      color: #0b2035; letter-spacing: 0;
+      margin: 0 0 10px 0;
+    }
+    .cookie-banner-card p {
+      color: #5f5a55; font-size: 0.82rem;
+      line-height: 1.55; margin: 0 0 18px 0; text-align: left;
+    }
+    .cookie-link { color: #c9a96e; text-decoration: underline; }
+    .cookie-banner-buttons { display: flex; gap: 10px; margin-bottom: 12px; }
+    .cookie-btn {
+      flex: 1; padding: 11px 16px; border: none; border-radius: 3px;
+      font-size: 0.78rem; font-weight: 600; cursor: pointer;
+      font-family: inherit; letter-spacing: 0.06em;
+      transition: background .2s;
+    }
+    .btn-cookie-primary  { background: #2a7f8a; color: #fff; }
+    .btn-cookie-primary:hover  { background: #3fa0ad; }
+    .btn-cookie-secondary { background: transparent; color: #0b2035; border: 1px solid rgba(11,32,53,0.2); }
+    .btn-cookie-secondary:hover { background: rgba(11,32,53,0.06); }
+    .cookie-banner-footer { margin-top: 8px; }
+    .cookie-config-link {
+      font-size: 0.7rem; color: #c9a96e; text-decoration: underline;
+      font-weight: 600; letter-spacing: 0.05em;
+    }
+    @media (max-width: 480px) {
+      .cookie-banner-wrapper { bottom: 0; right: 0; max-width: 100%; }
+      .cookie-banner-card { border-radius: 8px 8px 0 0; }
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="logo-wrap">
+    <img src="logo.png" alt="Sport Massage Logo" onerror="this.style.display='none'">
+    <div class="logo-name">Sport Massage<br>Sport Massage in Fuengirola<span>Fuengirola · Sofía</span></div>
+  </div>
+  <div class="header-right">
+    <nav aria-label="Navegación principal">
+      <a href="index-3.html#servicios" data-key="nav-services">Servicios</a>
+      <a href="https://blog.sportmassagefuengirola.com/" data-key="nav-blog">Blog</a>
+      <a href="index-3.html#sobre-mi" data-key="nav-about">Sobre mí</a>
+      <a href="index-3.html#contacto" data-key="nav-contact">Contacto</a>
+    </nav>
+    <div class="lang">
+      <button onclick="setLang('es')" id="btn-es" title="Español">🇪🇸</button>
+      <button onclick="setLang('en')" id="btn-en" title="English">🇬🇧</button>
+      <button onclick="setLang('fi')" id="btn-fi" title="Suomi">🇫🇮</button>
+    </div>
+  </div>
+</header>
+
+<div id="legal-root"></div>
+
+<footer>
+  <div class="footer-left">Sport Massage in Fuengirola · Fuengirola</div>
+  <div class="footer-right" id="footer-right">
+    © 2026 · <span data-key="footer-rights">Todos los derechos reservados</span> ·
+    <a href="legal.html" data-key="footer-legal">Información Legal</a>
+  </div>
+</footer>
+
+<div class="studio-bar" role="contentinfo">
+  <span class="studio-bar__label" data-key="studio-label">Desarrollado y mantenido por</span>
+  <a class="studio-bar__link" href="https://webfuengirola.com" target="_blank" rel="noreferrer">Web Fuengirola Studio</a>
+</div>
+
+<script>
+/* ── Translations ───────────────────────────────────────────────── */
+var T = {
+  es: {
+    'nav-services':  'Servicios',
+    'nav-blog':      'Blog',
+    'nav-about':     'Sobre mí',
+    'nav-contact':   'Contacto',
+    'footer-rights': 'Todos los derechos reservados',
+    'footer-legal':  'Información Legal',
+    'studio-label':  'Desarrollado y mantenido por',
+
+    legalTitle:   'Información Legal',
+    indexLabel:   'Contenido de esta página',
+    s1Title:      '1. Aviso Legal e Información Identificativa',
+    s2Title:      '2. Política de Privacidad y Protección de Datos',
+    s3Title:      '3. Política de Cookies',
+    s4Title:      '4. Actualizaciones de esta Política',
+
+    ownerLabel:   'Titular de la web',
+    nifLabel:     'NIF / CIF',
+    addressLabel: 'Domicilio fiscal',
+    contactLabel: 'Contacto',
+    siteLabel:    'Sitio web',
+    waLabel:      'WhatsApp: +34 624 043 365',
+
+    /* Section 1 */
+    s1Intro: 'En cumplimiento con el deber de información recogido en el artículo 10 de la Ley 34/2002, de 11 de julio, de Servicios de la Sociedad de la Información y del Comercio Electrónico (LSSI-CE), se facilitan a continuación los datos identificativos del titular de este sitio web.',
+    s1UseH:  'Condiciones de uso',
+    s1Use1:  'El acceso y uso de este sitio web atribuye al visitante la condición de usuario y supone la aceptación plena de las presentes condiciones de uso. El usuario se compromete a hacer un uso adecuado de los contenidos y servicios, sin emplearlos para actividades ilícitas o contrarias a la buena fe, al orden público o a los derechos de terceros.',
+    s1Use2:  'Los contenidos de este sitio web —textos, imágenes, diseño y código— son propiedad del titular o cuentan con la debida autorización de uso. Queda prohibida su reproducción, distribución o comunicación pública sin autorización expresa.',
+    s1Use3:  'El titular se reserva el derecho a modificar, suspender o dar de baja los contenidos y servicios del sitio en cualquier momento, sin previo aviso.',
+
+    /* Section 2 */
+    s2Intro:        'En cumplimiento del Reglamento (UE) 2016/679 (RGPD) y de la Ley Orgánica 3/2018 (LOPDGDD), se informa al usuario de la siguiente política de tratamiento de datos personales.',
+    s2ResponsableH: 'Responsable del tratamiento',
+    s2PurposeH:     'Finalidad del tratamiento',
+    s2PurposeIntro: 'Los datos personales que pudieran recogerse a través de WhatsApp u otros medios de contacto facilitados en esta web se utilizan exclusivamente para:',
+    s2Li1:          'Responder a las consultas y mensajes enviados por el usuario.',
+    s2Li2:          'Gestionar citas y solicitudes de reserva de tratamientos.',
+    s2NoProfiling:  'No se realizan perfiles de usuario ni se toman decisiones automatizadas basadas en los datos facilitados.',
+    s2BasisH:       'Base de legitimación',
+    s2Basis:        'El tratamiento de los datos se basa en el consentimiento del usuario, prestado de forma libre, específica e inequívoca al enviar un mensaje de contacto o al solicitar información sobre los servicios ofrecidos.',
+    s2RetentionH:   'Plazo de conservación',
+    s2Retention:    'Los datos se conservarán durante el tiempo necesario para atender la solicitud del usuario y, posteriormente, durante los plazos legalmente establecidos.',
+    s2RightsH:      'Derechos del usuario',
+    s2Rights1:      'El usuario tiene derecho a acceder, rectificar, suprimir, oponerse, limitar y portar sus datos personales. Para ejercerlos, puede contactar a través de <a href="https://wa.me/34624043365" target="_blank" rel="noreferrer">WhatsApp (+34 624 043 365)</a>, indicando el derecho que desea ejercer.',
+    s2Rights2:      'Si considera que el tratamiento de sus datos no se ajusta a la normativa vigente, puede presentar una reclamación ante la Agencia Española de Protección de Datos (www.aepd.es).',
+
+    /* Section 3 */
+    s3WhatH:     '¿Qué es una cookie?',
+    s3What:      'Una cookie es un pequeño archivo de texto que un sitio web guarda en el navegador del usuario. Permite que el sitio recuerde información sobre la visita para facilitar la navegación.',
+    s3UsedH:     'Cookies utilizadas en este sitio',
+    s3Used1:     'Este sitio web es de naturaleza informativa y no utiliza cookies de seguimiento, analítica ni publicidad de terceros (como Google Analytics o píxeles de redes sociales).',
+    s3Used2:     'Si en el futuro se incorporaran cookies adicionales, esta política se actualizará y se solicitará el consentimiento del usuario antes de activarlas.',
+    s3ManageH:   'Cómo gestionar o desactivar las cookies',
+    s3Manage:    'El usuario puede configurar su navegador para rechazar o borrar las cookies en cualquier momento:',
+
+    /* Section 4 */
+    s4Text1:     'Esta política puede ser modificada en función de cambios legislativos o de nuevas funcionalidades incorporadas al servicio. Se recomienda revisarla periódicamente.',
+    s4Text2:     'Última actualización: mayo de 2026.'
+  },
+
+  en: {
+    'nav-services':  'Services',
+    'nav-blog':      'Blog',
+    'nav-about':     'About me',
+    'nav-contact':   'Contact',
+    'footer-rights': 'All rights reserved',
+    'footer-legal':  'Legal Information',
+    'studio-label':  'Developed and maintained by',
+
+    legalTitle:   'Legal Information',
+    indexLabel:   'Contents',
+    s1Title:      '1. Legal Notice and Identification',
+    s2Title:      '2. Privacy Policy and Data Protection',
+    s3Title:      '3. Cookie Policy',
+    s4Title:      '4. Updates to this Policy',
+
+    ownerLabel:   'Website owner',
+    nifLabel:     'Tax ID',
+    addressLabel: 'Registered address',
+    contactLabel: 'Contact',
+    siteLabel:    'Website',
+    waLabel:      'WhatsApp: +34 624 043 365',
+
+    s1Intro: 'In compliance with the duty of information set out in article 10 of Law 34/2002, of 11 July, on Information Society Services and Electronic Commerce (LSSI-CE), the identifying data of the owner of this website are provided below.',
+    s1UseH:  'Terms of use',
+    s1Use1:  'Access to and use of this website gives the visitor the status of user and implies full acceptance of these terms of use. The user agrees to use the content and services appropriately, and not to use them for illegal activities or activities contrary to good faith, public order, or the rights of third parties.',
+    s1Use2:  'The content of this website — texts, images, design and code — is the property of the owner or is used with due authorisation. Its reproduction, distribution or public communication without express permission is prohibited.',
+    s1Use3:  'The owner reserves the right to modify, suspend or remove the content and services of the site at any time without prior notice.',
+
+    s2Intro:        'In compliance with Regulation (EU) 2016/679 (GDPR) and Organic Law 3/2018 (LOPDGDD), the user is informed of the following personal data processing policy.',
+    s2ResponsableH: 'Data controller',
+    s2PurposeH:     'Purpose of processing',
+    s2PurposeIntro: 'Personal data that may be collected through WhatsApp or other contact methods provided on this website are used exclusively to:',
+    s2Li1:          'Respond to enquiries and messages sent by the user.',
+    s2Li2:          'Manage appointments and booking requests for treatments.',
+    s2NoProfiling:  'No user profiling is carried out, nor are automated decisions made based on the data provided.',
+    s2BasisH:       'Legal basis',
+    s2Basis:        'Data processing is based on the user\'s consent, given freely, specifically and unambiguously by sending a contact message or requesting information about the services offered.',
+    s2RetentionH:   'Retention period',
+    s2Retention:    'Data will be kept for as long as necessary to attend to the user\'s request and, subsequently, for the legally established periods.',
+    s2RightsH:      'User rights',
+    s2Rights1:      'The user has the right to access, rectify, delete, object to, limit and port their personal data. To exercise these rights, please contact via <a href="https://wa.me/34624043365" target="_blank" rel="noreferrer">WhatsApp (+34 624 043 365)</a>, stating the right you wish to exercise.',
+    s2Rights2:      'If you believe that the processing of your data does not comply with current legislation, you may lodge a complaint with the Spanish Data Protection Agency (www.aepd.es).',
+
+    s3WhatH:     'What is a cookie?',
+    s3What:      'A cookie is a small text file that a website stores in the user\'s browser. It allows the site to remember information about the visit in order to facilitate navigation.',
+    s3UsedH:     'Cookies used on this site',
+    s3Used1:     'This website is informational in nature and does not use tracking cookies, analytics or third-party advertising (such as Google Analytics or social media pixels).',
+    s3Used2:     'If additional cookies are incorporated in the future, this policy will be updated and the user\'s consent will be requested before activating them.',
+    s3ManageH:   'How to manage or disable cookies',
+    s3Manage:    'The user can configure their browser to reject or delete cookies at any time:',
+
+    s4Text1:     'This policy may be modified in response to legislative changes or new features added to the service. We recommend checking it periodically.',
+    s4Text2:     'Last updated: May 2026.'
+  },
+
+  fi: {
+    'nav-services':  'Palvelut',
+    'nav-blog':      'Blogi',
+    'nav-about':     'Tietoa minusta',
+    'nav-contact':   'Yhteystiedot',
+    'footer-rights': 'Kaikki oikeudet pidätetään',
+    'footer-legal':  'Oikeudelliset tiedot',
+    'studio-label':  'Kehittänyt ja ylläpitää',
+
+    legalTitle:   'Oikeudelliset tiedot',
+    indexLabel:   'Sisältö',
+    s1Title:      '1. Oikeudellinen ilmoitus ja tunnistetiedot',
+    s2Title:      '2. Tietosuojakäytäntö',
+    s3Title:      '3. Evästekäytäntö',
+    s4Title:      '4. Käytännön päivitykset',
+
+    ownerLabel:   'Sivuston omistaja',
+    nifLabel:     'Verotunniste',
+    addressLabel: 'Rekisteröity osoite',
+    contactLabel: 'Yhteystiedot',
+    siteLabel:    'Verkkosivusto',
+    waLabel:      'WhatsApp: +34 624 043 365',
+
+    s1Intro: 'Lain 34/2002 (tietoyhteiskunnan palveluista ja sähköisestä kaupankäynnistä, LSSI-CE) 10 artiklan mukaisen tiedonantovelvoitteen täyttämiseksi tämän verkkosivuston omistajan tunnistetiedot esitetään alla.',
+    s1UseH:  'Käyttöehdot',
+    s1Use1:  'Tämän verkkosivuston käyttö antaa käyttäjälle käyttäjän aseman ja tarkoittaa näiden käyttöehtojen täyttä hyväksymistä. Käyttäjä sitoutuu käyttämään sisältöä ja palveluita asianmukaisesti eikä käyttämään niitä laittomaan toimintaan tai toimintaan, joka on vastoin hyvää uskoa, yleistä järjestystä tai kolmansien osapuolten oikeuksia.',
+    s1Use2:  'Verkkosivuston sisältö — tekstit, kuvat, suunnittelu ja koodi — kuuluu omistajalle tai on käytössä asianmukaisella luvalla. Sen jäljentäminen, jakaminen tai julkinen viestintä ilman nimenomaista lupaa on kielletty.',
+    s1Use3:  'Omistaja pidättää oikeuden muuttaa, keskeyttää tai poistaa sivuston sisältöä ja palveluita milloin tahansa ilman ennakkoilmoitusta.',
+
+    s2Intro:        'Euroopan parlamentin ja neuvoston asetuksen (EU) 2016/679 (GDPR) ja lain 3/2018 (LOPDGDD) mukaisesti käyttäjälle ilmoitetaan seuraavasta henkilötietojen käsittelykäytännöstä.',
+    s2ResponsableH: 'Rekisterinpitäjä',
+    s2PurposeH:     'Käsittelyn tarkoitus',
+    s2PurposeIntro: 'WhatsAppin tai muiden tällä verkkosivustolla tarjottujen yhteydenottovälineiden kautta kerättyjä henkilötietoja käytetään ainoastaan:',
+    s2Li1:          'Vastaamaan käyttäjän lähettämiin tiedusteluihin ja viesteihin.',
+    s2Li2:          'Hallitsemaan hoitoaikojen varauksia.',
+    s2NoProfiling:  'Käyttäjäprofilointia ei tehdä, eikä kerättyjen tietojen perusteella tehdä automaattisia päätöksiä.',
+    s2BasisH:       'Oikeusperuste',
+    s2Basis:        'Tietojenkäsittely perustuu käyttäjän suostumukseen, joka on annettu vapaasti, yksilöidysti ja yksiselitteisesti lähettämällä yhteydenottoviestin tai pyytämällä tietoja tarjotuista palveluista.',
+    s2RetentionH:   'Säilytysaika',
+    s2Retention:    'Tietoja säilytetään niin kauan kuin on tarpeen käyttäjän pyyntöön vastaamiseksi ja sen jälkeen lainsäädännön edellyttämien määräaikojen ajan.',
+    s2RightsH:      'Käyttäjän oikeudet',
+    s2Rights1:      'Käyttäjällä on oikeus tutustua, oikaista, poistaa, vastustaa, rajoittaa ja siirtää henkilötietojaan. Näiden oikeuksien käyttämiseksi ota yhteyttä <a href="https://wa.me/34624043365" target="_blank" rel="noreferrer">WhatsAppin (+34 624 043 365)</a> kautta ja ilmoita, mitä oikeutta haluatte käyttää.',
+    s2Rights2:      'Jos katsot, että tietojesi käsittely ei ole voimassa olevan lainsäädännön mukaista, voit tehdä valituksen Espanjan tietosuojavirastolle (www.aepd.es).',
+
+    s3WhatH:     'Mikä on eväste?',
+    s3What:      'Eväste on pieni tekstitiedosto, jonka verkkosivusto tallentaa käyttäjän selaimeen. Sen avulla sivusto voi muistaa tietoja vierailusta helpottaakseen navigointia.',
+    s3UsedH:     'Tällä sivustolla käytetyt evästeet',
+    s3Used1:     'Tämä verkkosivusto on informatiivinen eikä käytä seuranta-, analytiikka- tai kolmannen osapuolen mainosevästeitä (kuten Google Analytics tai sosiaalisen median pikselit).',
+    s3Used2:     'Jos tulevaisuudessa lisätään muita evästeitä, tätä käytäntöä päivitetään ja käyttäjältä pyydetään suostumus ennen niiden aktivoimista.',
+    s3ManageH:   'Evästeiden hallinta tai poistaminen käytöstä',
+    s3Manage:    'Käyttäjä voi määrittää selaimensa hylkäämään tai poistamaan evästeet milloin tahansa:',
+
+    s4Text1:     'Tätä käytäntöä voidaan muuttaa lainsäädäntömuutosten tai palveluun lisättyjen uusien ominaisuuksien johdosta. Suosittelemme tarkistamaan sen säännöllisesti.',
+    s4Text2:     'Viimeksi päivitetty: toukokuu 2026.'
+  }
+};
+
+/* ── Legal page renderer ───────────────────────────────────────── */
+var APP = {
+  ownerName:    'Samuel Hogarola García',
+  ownerNif:     'Z3595944Z',
+  ownerAddress: 'Calle Narciso 5',
+  siteUrl:      'https://sportmassagefuengirola.com'
+};
+
+function renderLegal(lang) {
+  var t = T[lang] || T.es;
+  var h = '';
+
+  h += '<h1 class="legal-title">' + t.legalTitle + '</h1>';
+
+  h += '<nav class="legal-index" aria-label="' + t.indexLabel + '"><p>' + t.indexLabel + '</p><ol>'
+     + '<li><a href="#aviso-legal">'     + t.s1Title + '</a></li>'
+     + '<li><a href="#privacidad">'      + t.s2Title + '</a></li>'
+     + '<li><a href="#cookies">'         + t.s3Title + '</a></li>'
+     + '<li><a href="#actualizaciones">' + t.s4Title + '</a></li>'
+     + '</ol></nav>';
+
+  /* Section 1 */
+  h += '<section class="legal-section" id="aviso-legal">'
+     + '<h2>' + t.s1Title + '</h2>'
+     + '<p>' + t.s1Intro + '</p>'
+     + '<table class="legal-table">'
+     + '<tr><td>' + t.ownerLabel   + '</td><td>' + APP.ownerName + '</td></tr>'
+     + '<tr><td>' + t.nifLabel     + '</td><td>' + APP.ownerNif + '</td></tr>'
+     + '<tr><td>' + t.addressLabel + '</td><td>' + APP.ownerAddress + '</td></tr>'
+     + '<tr><td>' + t.contactLabel + '</td><td><a href="https://wa.me/34624043365" target="_blank" rel="noreferrer">' + t.waLabel + '</a></td></tr>'
+     + '<tr><td>' + t.siteLabel    + '</td><td><a href="' + APP.siteUrl + '" target="_blank" rel="noreferrer">' + APP.siteUrl + '</a></td></tr>'
+     + '</table>'
+     + '<h3>' + t.s1UseH + '</h3>'
+     + '<p>' + t.s1Use1 + '</p>'
+     + '<p>' + t.s1Use2 + '</p>'
+     + '<p>' + t.s1Use3 + '</p>'
+     + '</section>';
+
+  /* Section 2 */
+  h += '<section class="legal-section" id="privacidad">'
+     + '<h2>' + t.s2Title + '</h2>'
+     + '<p>' + t.s2Intro + '</p>'
+     + '<h3>' + t.s2ResponsableH + '</h3>'
+     + '<p>' + APP.ownerName + '<br>NIF / CIF: ' + APP.ownerNif + '<br>' + t.contactLabel + ': <a href="https://wa.me/34624043365" target="_blank" rel="noreferrer">WhatsApp +34 624 043 365</a></p>'
+     + '<h3>' + t.s2PurposeH + '</h3>'
+     + '<p>' + t.s2PurposeIntro + '</p>'
+     + '<ul><li>' + t.s2Li1 + '</li><li>' + t.s2Li2 + '</li></ul>'
+     + '<p>' + t.s2NoProfiling + '</p>'
+     + '<h3>' + t.s2BasisH + '</h3>'
+     + '<p>' + t.s2Basis + '</p>'
+     + '<h3>' + t.s2RetentionH + '</h3>'
+     + '<p>' + t.s2Retention + '</p>'
+     + '<h3>' + t.s2RightsH + '</h3>'
+     + '<p>' + t.s2Rights1 + '</p>'
+     + '<p>' + t.s2Rights2 + '</p>'
+     + '</section>';
+
+  /* Section 3 */
+  var browsers = [
+    ['Google Chrome',   'https://support.google.com/chrome/answer/95647'],
+    ['Mozilla Firefox', 'https://support.mozilla.org/es/kb/habilitar-y-deshabilitar-cookies-sitios-web-rastrear-preferencias'],
+    ['Safari',          'https://support.apple.com/es-es/guide/safari/sfri11471/mac'],
+    ['Microsoft Edge',  'https://support.microsoft.com/es-es/windows/eliminar-y-administrar-cookies-168dab11-0753-043d-7c16-ede5947fc64d']
+  ];
+  var bLinks = '';
+  for (var b = 0; b < browsers.length; b++) {
+    bLinks += '<li><a href="' + browsers[b][1] + '" target="_blank" rel="noreferrer">' + browsers[b][0] + '</a></li>';
+  }
+  h += '<section class="legal-section" id="cookies">'
+     + '<h2>' + t.s3Title + '</h2>'
+     + '<h3>' + t.s3WhatH + '</h3>'
+     + '<p>' + t.s3What + '</p>'
+     + '<h3>' + t.s3UsedH + '</h3>'
+     + '<p>' + t.s3Used1 + '</p>'
+     + '<p>' + t.s3Used2 + '</p>'
+     + '<h3>' + t.s3ManageH + '</h3>'
+     + '<p>' + t.s3Manage + '</p>'
+     + '<ul>' + bLinks + '</ul>'
+     + '</section>';
+
+  /* Section 4 */
+  h += '<section class="legal-section" id="actualizaciones">'
+     + '<h2>' + t.s4Title + '</h2>'
+     + '<p>' + t.s4Text1 + '</p>'
+     + '<p>' + t.s4Text2 + '</p>'
+     + '</section>';
+
+  return '<main class="legal-wrap">' + h + '</main>';
+}
+
+/* ── Language switcher ─────────────────────────────────────────── */
+function setLang(lang) {
+  if (!T[lang]) lang = 'es';
+  var t = T[lang];
+
+  /* active button */
+  ['es','en','fi'].forEach(function(l) {
+    document.getElementById('btn-' + l).classList.toggle('active', l === lang);
+  });
+
+  /* html lang attribute */
+  document.documentElement.lang = lang;
+
+  /* nav + static data-key elements */
+  document.querySelectorAll('[data-key]').forEach(function(el) {
+    var k = el.dataset.key;
+    if (t[k] !== undefined) el.innerHTML = t[k];
+  });
+
+  /* legal content */
+  document.getElementById('legal-root').innerHTML = renderLegal(lang);
+
+  /* persist */
+  try { localStorage.setItem('smf-lang', lang); } catch(e) {}
+}
+
+/* ── Init ──────────────────────────────────────────────────────── */
+(function() {
+  var saved = 'es';
+  try { saved = localStorage.getItem('smf-lang') || 'es'; } catch(e) {}
+  setLang(saved);
+})();
+</script>
+
+<script>
+/* cookie-banner-core — inline (source: @lab-world/core feature/cookie-banner-core) */
+(function(){var b=function(c){var k=c.storageKey||'cookie_consent';if(localStorage.getItem(k))return;var i=c.imageSrc?'<div class="cookie-banner-img-container"><img src="'+c.imageSrc+'" alt="'+(c.imageAlt||'')+'" class="cookie-banner-img"></div>':'';var h='<div class="cookie-banner-wrapper"><div class="cookie-banner-card">'+i+'<h2>'+(c.title||'')+'</h2>'+(c.noticeHtml||'')+'<div class="cookie-banner-buttons"><button class="cb-reject cookie-btn btn-cookie-secondary">'+(c.rejectLabel||'Rechazar')+'</button><button class="cb-accept cookie-btn btn-cookie-primary">'+(c.acceptLabel||'Aceptar')+'</button></div><div class="cookie-banner-footer"><a href="'+(c.configUrl||c.policyUrl||'#')+'" class="cookie-config-link">'+(c.configLabel||'')+'</a></div></div></div>';var t=document.createElement('div');t.innerHTML=h;var w=t.firstChild;document.body.appendChild(w);w.style.display='block';w.querySelector('.cb-accept').addEventListener('click',function(){localStorage.setItem(k,'accepted');w.style.display='none';});w.querySelector('.cb-reject').addEventListener('click',function(){localStorage.setItem(k,'rejected');w.style.display='none';});};window.CookieBannerCore={init:b};})();
+
+(function () {
+  var lang = 'es';
+  try { lang = localStorage.getItem('smf-lang') || 'es'; } catch(e) {}
+  var texts = {
+    es: { title: 'Usamos cookies', notice: 'Esta web utiliza cookies propias para guardar tu preferencia de idioma.', ok: 'Aceptar', reject: 'Rechazar', policy: 'Política de cookies' },
+    en: { title: 'We use cookies', notice: 'This site uses cookies to save your language preference.', ok: 'Accept', reject: 'Decline', policy: 'Cookie policy' },
+    fi: { title: 'Käytämme evästeitä', notice: 'Sivusto käyttää evästeitä kielivalintasi tallentamiseen.', ok: 'Hyväksy', reject: 'Hylkää', policy: 'Evästekäytäntö' }
+  };
+  var t = texts[lang] || texts.es;
+  CookieBannerCore.init({
+    storageKey:  'smf-cookie-consent',
+    title:       t.title,
+    noticeHtml:  '<p>' + t.notice + ' <a class="cookie-link" href="#cookies">' + t.policy + '</a></p>',
+    acceptLabel: t.ok,
+    rejectLabel: t.reject,
+    configLabel: t.policy,
+    configUrl:   '#cookies'
+  });
+})();
+</script>
+
+</body>
+</html>

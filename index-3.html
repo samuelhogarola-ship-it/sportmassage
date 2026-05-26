@@ -1,0 +1,906 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sport Massage in Fuengirola – Fuengirola</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400&family=Jost:wght@200;300;400;500&display=swap" rel="stylesheet">
+
+  <style>
+    :root {
+      --navy: #0b2035;
+      --navy-mid: #132d4a;
+      --teal: #2a7f8a;
+      --teal-light: #3fa0ad;
+      --gold: #c9a96e;
+      --cream: #f7f4ef;
+      --white: #ffffff;
+      --text: #1a1a1a;
+      --text-muted: #5a5a5a;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; }
+
+    body {
+      font-family: 'Jost', sans-serif;
+      background: var(--cream);
+      color: var(--text);
+      overflow-x: hidden;
+    }
+
+    header {
+      position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 18px 48px;
+      background: rgba(11, 32, 53, 0.92);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid rgba(201,169,110,0.2);
+    }
+
+    .logo-wrap { display: flex; align-items: center; gap: 14px; }
+    .logo-wrap img { height: 46px; width: 46px; object-fit: contain; border-radius: 8px; }
+    .logo-name {
+      font-family: 'Cormorant Garamond', serif; color: var(--white);
+      font-size: 1.05rem; font-weight: 300; letter-spacing: 0.04em; line-height: 1.3;
+    }
+    .logo-name span {
+      display: block; color: var(--gold); font-size: 0.72rem; letter-spacing: 0.18em;
+      text-transform: uppercase; font-family: 'Jost', sans-serif; font-weight: 200;
+    }
+
+    .header-right { display: flex; align-items: center; gap: 28px; }
+    nav { display: flex; gap: 28px; }
+    nav a {
+      color: rgba(255,255,255,0.75); text-decoration: none; font-size: 0.78rem;
+      font-weight: 300; letter-spacing: 0.12em; text-transform: uppercase; transition: color 0.2s;
+    }
+    nav a:hover { color: var(--gold); }
+    .lang { display: flex; gap: 8px; }
+    .lang button { background: none; border: none; cursor: pointer; font-size: 20px; opacity: 0.6; transition: opacity 0.2s; }
+    .lang button:hover, .lang button.active { opacity: 1; }
+
+    .hero {
+      min-height: 100vh; display: flex; flex-direction: column;
+      align-items: center; justify-content: center; text-align: center;
+      padding: 120px 40px 80px; position: relative; background: var(--navy); overflow: hidden;
+    }
+    .hero::before {
+      content: ''; position: absolute; inset: 0;
+      background:
+        radial-gradient(ellipse 60% 50% at 20% 80%, rgba(42,127,138,0.25) 0%, transparent 70%),
+        radial-gradient(ellipse 50% 60% at 80% 20%, rgba(201,169,110,0.1) 0%, transparent 70%);
+    }
+
+    .hero-eyebrow {
+      font-size: 0.7rem; font-weight: 300; letter-spacing: 0.35em; text-transform: uppercase;
+      color: var(--gold); margin-bottom: 24px; opacity: 0; animation: fadeUp 0.8s 0.2s forwards;
+    }
+    .hero h1 {
+      font-family: 'Cormorant Garamond', serif; font-size: clamp(3.2rem, 8vw, 7rem);
+      font-weight: 300; color: var(--white); line-height: 1.05; margin-bottom: 28px;
+      opacity: 0; animation: fadeUp 0.9s 0.35s forwards;
+    }
+    .hero h1 em { font-style: italic; color: var(--gold); }
+    .hero-sub {
+      font-size: 1rem; font-weight: 200; color: rgba(255,255,255,0.65); letter-spacing: 0.06em;
+      max-width: 460px; line-height: 1.8; margin-bottom: 48px;
+      opacity: 0; animation: fadeUp 0.9s 0.5s forwards;
+    }
+    .hero-cta {
+      display: inline-flex; align-items: center; gap: 10px; background: var(--teal);
+      color: white; text-decoration: none; padding: 16px 36px; border-radius: 2px;
+      font-size: 0.82rem; font-weight: 400; letter-spacing: 0.12em; text-transform: uppercase;
+      transition: background 0.25s, transform 0.2s;
+      opacity: 0; animation: fadeUp 0.9s 0.65s forwards;
+    }
+    .hero-cta:hover { background: var(--teal-light); transform: translateY(-2px); }
+    .hero-cta svg { width: 18px; height: 18px; fill: white; }
+    .hero-scroll {
+      position: absolute; bottom: 36px; left: 50%; transform: translateX(-50%);
+      display: flex; flex-direction: column; align-items: center; gap: 8px;
+      color: rgba(255,255,255,0.35); font-size: 0.65rem; letter-spacing: 0.2em;
+      text-transform: uppercase; animation: bounce 2s infinite;
+    }
+    .hero-scroll::after { content: ''; width: 1px; height: 40px; background: linear-gradient(to bottom, rgba(201,169,110,0.6), transparent); }
+
+    .about { display: grid; grid-template-columns: 1fr 1fr; min-height: 60vh; background: var(--cream); }
+    .about-text { padding: 80px 60px; display: flex; flex-direction: column; justify-content: center; }
+    .about-visual {
+      background: var(--navy-mid); display: flex; align-items: center; justify-content: center;
+      padding: 60px; position: relative; overflow: hidden;
+    }
+    .about-visual::before {
+      content: ''; position: absolute; inset: 0;
+      background: radial-gradient(ellipse at 30% 70%, rgba(42,127,138,0.3) 0%, transparent 60%);
+    }
+    .about-visual-inner { position: relative; text-align: center; color: white; }
+    .about-visual-inner .big-num {
+      font-family: 'Cormorant Garamond', serif; font-size: 7rem; font-weight: 300;
+      color: var(--gold); line-height: 1; display: block;
+    }
+    .about-visual-inner p { font-size: 0.75rem; letter-spacing: 0.2em; text-transform: uppercase; color: rgba(255,255,255,0.6); font-weight: 200; margin-top: 8px; }
+
+    .section-tag {
+      font-size: 0.68rem; font-weight: 300; letter-spacing: 0.3em; text-transform: uppercase;
+      color: var(--teal); margin-bottom: 16px; display: flex; align-items: center; gap: 10px;
+    }
+    .section-tag::before { content: ''; width: 28px; height: 1px; background: var(--teal); }
+    .section-title { font-family: 'Cormorant Garamond', serif; font-size: clamp(2rem, 4vw, 3.2rem); font-weight: 300; line-height: 1.15; margin-bottom: 24px; }
+    .about-text p { color: var(--text-muted); line-height: 1.9; font-size: 0.92rem; font-weight: 300; margin-bottom: 16px; max-width: 460px; }
+    .cert-badge {
+      margin-top: 32px; display: inline-flex; align-items: center; gap: 10px;
+      padding: 12px 20px; border: 1px solid rgba(201,169,110,0.35); border-radius: 2px;
+      font-size: 0.75rem; letter-spacing: 0.1em; color: var(--text-muted);
+    }
+    .cert-badge::before { content: '🏆'; }
+
+    .services-section { padding: 100px 0; background: var(--navy); }
+    .services-header { text-align: center; padding: 0 40px; margin-bottom: 70px; }
+    .services-header .section-tag { justify-content: center; }
+    .services-header .section-tag::before { display: none; }
+    .services-header .section-title { color: var(--white); }
+
+    .services-grid {
+      display: grid; grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
+      gap: 2px; max-width: 1400px; margin: 0 auto; padding: 0 2px;
+    }
+
+    .service-card {
+      background: var(--navy-mid); padding: 44px 40px;
+      transition: background 0.25s; position: relative; overflow: hidden;
+      border: 1px solid rgba(255,255,255,0.04);
+    }
+    .service-card::before {
+      content: ''; position: absolute; top: 0; left: 0;
+      width: 3px; height: 0; background: var(--gold); transition: height 0.35s;
+    }
+    .service-card:hover { background: rgba(42,127,138,0.08); }
+    .service-card:hover::before { height: 100%; }
+
+    .service-card .service-icon { font-size: 1.8rem; margin-bottom: 16px; display: block; }
+    .service-card h3 {
+      font-family: 'Cormorant Garamond', serif; font-size: 1.55rem; font-weight: 400;
+      color: var(--white); margin-bottom: 10px; line-height: 1.2;
+    }
+    .service-card .service-desc {
+      font-size: 0.81rem; color: rgba(255,255,255,0.5); line-height: 1.85; font-weight: 300; margin-bottom: 24px;
+    }
+
+    .price-table { width: 100%; }
+    .price-row {
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 9px 0; border-bottom: 1px solid rgba(255,255,255,0.07);
+      font-size: 0.81rem; color: rgba(255,255,255,0.7);
+    }
+    .price-row:last-child { border-bottom: none; }
+    .price-row .price { font-weight: 500; color: var(--gold); font-size: 0.88rem; }
+
+    .single-price { font-family: 'Cormorant Garamond', serif; font-size: 2.1rem; color: var(--gold); font-weight: 300; }
+    .single-price span { font-family: 'Jost', sans-serif; font-size: 0.78rem; color: rgba(255,255,255,0.45); letter-spacing: 0.1em; margin-left: 6px; font-weight: 200; }
+    .service-list { list-style: none; padding: 0; margin: 0 0 16px; }
+    .service-list li { font-size: 0.81rem; color: rgba(255,255,255,0.55); padding: 4px 0 4px 16px; position: relative; font-weight: 300; line-height: 1.5; }
+    .service-list li::before { content: '—'; position: absolute; left: 0; color: var(--gold); font-size: 0.72rem; }
+
+    .book-btn {
+      display: inline-flex; align-items: center; gap: 8px; margin-top: 24px;
+      background: var(--teal); color: white; text-decoration: none; padding: 11px 22px;
+      font-size: 0.74rem; letter-spacing: 0.12em; text-transform: uppercase; border-radius: 2px;
+      transition: background 0.2s, transform 0.2s; border: none; cursor: pointer; font-family: 'Jost', sans-serif;
+    }
+    .book-btn:hover { background: var(--teal-light); transform: translateY(-1px); }
+    .book-btn svg { width: 14px; height: 14px; fill: white; }
+
+    .cta-strip { background: var(--teal); padding: 70px 40px; text-align: center; position: relative; overflow: hidden; }
+    .cta-strip::before { content: ''; position: absolute; inset: 0; background: radial-gradient(ellipse at 50% 0%, rgba(255,255,255,0.15) 0%, transparent 60%); }
+    .cta-strip h2 { font-family: 'Cormorant Garamond', serif; font-size: clamp(2rem, 5vw, 3.5rem); font-weight: 300; color: white; margin-bottom: 16px; position: relative; }
+    .cta-strip p { color: rgba(255,255,255,0.75); font-size: 0.9rem; margin-bottom: 36px; font-weight: 300; position: relative; }
+    .cta-strip .book-btn { background: var(--navy); position: relative; padding: 16px 40px; font-size: 0.82rem; }
+    .cta-strip .book-btn:hover { background: var(--navy-mid); }
+
+    .reviews-section {
+      padding: 95px 0 85px;
+      background:
+        radial-gradient(circle at top left, rgba(42,127,138,0.12), transparent 35%),
+        linear-gradient(180deg, #fbf8f3 0%, #f3ede4 100%);
+      overflow: hidden;
+    }
+    .reviews-shell { max-width: 1320px; margin: 0 auto; padding: 0 40px; }
+    .reviews-header { text-align: center; max-width: 760px; margin: 0 auto 48px; }
+    .reviews-header .section-tag { justify-content: center; }
+    .reviews-header .section-tag::before { display: none; }
+    .reviews-sub {
+      color: var(--text-muted); font-size: 0.95rem; line-height: 1.85; font-weight: 300;
+      max-width: 620px; margin: 0 auto;
+    }
+    .reviews-grid {
+      display: grid; grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 22px; margin-bottom: 34px;
+    }
+    .review-card {
+      background: rgba(255,255,255,0.72); border: 1px solid rgba(11,32,53,0.08);
+      padding: 30px 28px; backdrop-filter: blur(6px); box-shadow: 0 18px 40px rgba(11,32,53,0.05);
+    }
+    .review-stars {
+      color: var(--gold); font-size: 1rem; letter-spacing: 0.18em; margin-bottom: 16px;
+    }
+    .review-text {
+      color: var(--text); font-size: 0.9rem; line-height: 1.85; font-weight: 300; margin-bottom: 18px;
+    }
+    .review-name {
+      color: var(--navy); font-size: 0.78rem; letter-spacing: 0.12em; text-transform: uppercase;
+    }
+    .reviews-marquee {
+      position: relative; overflow: hidden; margin-bottom: 34px;
+      mask-image: linear-gradient(to right, transparent, black 10%, black 90%, transparent);
+      -webkit-mask-image: linear-gradient(to right, transparent, black 10%, black 90%, transparent);
+    }
+    .reviews-track {
+      display: flex; gap: 18px; width: max-content; animation: marquee 26s linear infinite;
+    }
+    .reviews-pill {
+      white-space: nowrap; border: 1px solid rgba(11,32,53,0.08); background: rgba(255,255,255,0.78);
+      color: var(--navy); padding: 14px 18px; font-size: 0.8rem; letter-spacing: 0.06em;
+      text-transform: uppercase; border-radius: 999px;
+    }
+    .reviews-pill strong { color: var(--gold); font-weight: 500; margin-right: 8px; }
+    .reviews-cta { text-align: center; }
+    .google-btn {
+      display: inline-flex; align-items: center; gap: 10px; text-decoration: none;
+      background: var(--navy); color: white; padding: 15px 34px; border-radius: 2px;
+      letter-spacing: 0.12em; text-transform: uppercase; font-size: 0.8rem; transition: background 0.2s, transform 0.2s;
+    }
+    .google-btn:hover { background: var(--navy-mid); transform: translateY(-1px); }
+    .google-btn svg { width: 16px; height: 16px; fill: currentColor; }
+
+    .info-section { display: grid; grid-template-columns: 1fr 1fr; background: var(--cream); }
+    .info-block { padding: 70px 60px; border-right: 1px solid rgba(0,0,0,0.07); }
+    .info-block:last-child { border-right: none; }
+    .info-block .section-tag { margin-bottom: 24px; }
+    .info-block h3 { font-family: 'Cormorant Garamond', serif; font-size: 1.8rem; font-weight: 300; margin-bottom: 20px; }
+    .info-item { display: flex; gap: 14px; margin-bottom: 18px; align-items: flex-start; }
+    .info-item .ico { font-size: 1.1rem; flex-shrink: 0; margin-top: 2px; }
+    .info-item p { font-size: 0.85rem; color: var(--text-muted); line-height: 1.7; font-weight: 300; }
+    .info-item strong { display: block; color: var(--text); font-weight: 400; margin-bottom: 2px; }
+    .info-block .book-btn { margin-top: 10px; }
+
+    footer {
+      background: var(--navy); padding: 48px 60px;
+      display: flex; align-items: center; justify-content: space-between;
+      border-top: 1px solid rgba(201,169,110,0.15);
+    }
+    .footer-left { font-family: 'Cormorant Garamond', serif; font-size: 1.3rem; font-weight: 300; color: rgba(255,255,255,0.6); }
+    .footer-right { font-size: 0.72rem; letter-spacing: 0.15em; color: rgba(255,255,255,0.3); text-transform: uppercase; }
+
+    /* ── Studio bar ─────────────────────────────────────────── */
+    .studio-bar {
+      background: #07182a;
+      border-top: 1px solid rgba(201,169,110,0.12);
+      padding: .6rem 24px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+    }
+    .studio-bar__label {
+      font-size: .62rem; font-weight: 400;
+      letter-spacing: .12em; text-transform: uppercase;
+      color: rgba(255,255,255,0.28);
+    }
+    .studio-bar__link {
+      font-size: .62rem; font-weight: 600;
+      letter-spacing: .12em; text-transform: uppercase;
+      color: rgba(201,169,110,0.65); text-decoration: none; transition: color .15s;
+    }
+    .studio-bar__link:hover { color: #c9a96e; }
+
+    @keyframes fadeUp { from { opacity:0; transform:translateY(22px); } to { opacity:1; transform:translateY(0); } }
+    @keyframes bounce { 0%,100%{ transform:translateX(-50%) translateY(0); } 50%{ transform:translateX(-50%) translateY(6px); } }
+    @keyframes marquee { from { transform: translateX(0); } to { transform: translateX(-50%); } }
+    .reveal { opacity:0; transform:translateY(30px); transition:opacity 0.7s, transform 0.7s; }
+    .reveal.visible { opacity:1; transform:translateY(0); }
+
+    @media(max-width:900px){
+      header {
+        padding: 14px 20px;
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 16px;
+      }
+      .header-right {
+        width: 100%;
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 14px;
+      }
+      nav {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 14px 18px;
+      }
+      nav a {
+        font-size: 0.72rem;
+        letter-spacing: 0.1em;
+      }
+      .lang {
+        align-self: flex-start;
+      }
+      .hero {
+        padding-top: 170px;
+      }
+      .about { grid-template-columns:1fr; } .about-visual { min-height:250px; }
+      .reviews-grid { grid-template-columns:1fr; }
+      .info-section { grid-template-columns:1fr; }
+      .info-block { border-right:none; border-bottom:1px solid rgba(0,0,0,0.07); padding:48px 32px; }
+      footer { flex-direction:column; gap:12px; text-align:center; padding:36px 24px; }
+      .services-grid { grid-template-columns:1fr; }
+    }
+    @media(max-width:600px){
+      .about-text { padding:52px 28px; } .hero h1 { font-size:2.8rem; }
+      .reviews-shell { padding: 0 24px; }
+      .reviews-pill { font-size: 0.72rem; padding: 12px 15px; }
+    }
+
+    /* ── cookie banner – base + massage palette ───────────── */
+    .cookie-banner-wrapper {
+      position: fixed; bottom: 20px; right: 20px;
+      width: 100%; max-width: 380px; z-index: 999999;
+      display: none; font-family: "Jost", sans-serif;
+    }
+    .cookie-banner-card {
+      background: #fcfaf6;
+      padding: 24px;
+      border-radius: 4px;
+      box-shadow: 0 8px 32px rgba(11,32,53,0.14);
+      border: 1px solid rgba(11,32,53,0.08);
+      text-align: center;
+    }
+    .cookie-banner-card h2 {
+      font-family: "Cormorant Garamond", serif;
+      font-weight: 400; font-size: 1.25rem;
+      color: #0b2035; letter-spacing: 0;
+      margin: 0 0 10px 0;
+    }
+    .cookie-banner-card p {
+      color: #5f5a55; font-size: 0.82rem;
+      line-height: 1.55; margin: 0 0 18px 0; text-align: left;
+    }
+    .cookie-link { color: #c9a96e; text-decoration: underline; }
+    .cookie-banner-buttons { display: flex; gap: 10px; margin-bottom: 12px; }
+    .cookie-btn {
+      flex: 1; padding: 11px 16px; border: none; border-radius: 3px;
+      font-size: 0.78rem; font-weight: 600; cursor: pointer;
+      font-family: inherit; letter-spacing: 0.06em;
+      transition: background .2s;
+    }
+    .btn-cookie-primary  { background: #2a7f8a; color: #fff; }
+    .btn-cookie-primary:hover  { background: #3fa0ad; }
+    .btn-cookie-secondary { background: transparent; color: #0b2035; border: 1px solid rgba(11,32,53,0.2); }
+    .btn-cookie-secondary:hover { background: rgba(11,32,53,0.06); }
+    .cookie-banner-footer { margin-top: 8px; }
+    .cookie-config-link {
+      font-size: 0.7rem; color: #c9a96e; text-decoration: underline;
+      font-weight: 600; letter-spacing: 0.05em;
+    }
+    @media (max-width: 480px) {
+      .cookie-banner-wrapper { bottom: 0; right: 0; max-width: 100%; }
+      .cookie-banner-card { border-radius: 8px 8px 0 0; }
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="logo-wrap">
+    <img src="images/logo.png" alt="Sport Massage Logo" onerror="this.style.display='none'">
+    <div class="logo-name">Sport Massage<br>Sport Massage in Fuengirola<span>Fuengirola · Sofía</span></div>
+  </div>
+  <div class="header-right">
+    <nav>
+      <a href="#servicios" data-key="nav-services">Servicios</a>
+      <a href="https://blog.sportmassagefuengirola.com/" data-key="nav-blog">Blog</a>
+      <a href="#sobre-mi" data-key="nav-about">Sobre mí</a>
+      <a href="#contacto" data-key="nav-contact">Contacto</a>
+    </nav>
+    <div class="lang">
+      <button onclick="setLang('es')" id="btn-es" class="active">🇪🇸</button>
+      <button onclick="setLang('en')" id="btn-en">🇬🇧</button>
+      <button onclick="setLang('fi')" id="btn-fi">🇫🇮</button>
+    </div>
+  </div>
+</header>
+
+<section class="hero">
+  <p class="hero-eyebrow" data-key="hero-eyebrow">Sport Massage in Fuengirola · Fuengirola</p>
+  <h1 data-key="hero-h1">Masaje profesional<br><em>especializado</em></h1>
+  <p class="hero-sub" data-key="hero-sub">Sofía — masajista certificada con formación finlandesa. Técnicas terapéuticas y deportivas para recuperar tu cuerpo y bienestar.</p>
+  <a href="https://wa.me/34624043365" class="hero-cta" target="_blank">
+    <svg viewBox="0 0 24 24"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
+    <span data-key="hero-btn">Reservar cita por WhatsApp</span>
+  </a>
+  <div class="hero-scroll">Scroll</div>
+</section>
+
+<section class="about" id="sobre-mi">
+  <div class="about-text reveal">
+    <p class="section-tag" data-key="about-tag">Tu terapeuta</p>
+    <h2 class="section-title" data-key="about-title">Sofía —<br>Formación finlandesa,<br>pasión por la salud</h2>
+    <p data-key="about-p1">Ofrezco tratamientos de masaje personalizados para favorecer el equilibrio del cuerpo. Los tratamientos ayudan a aliviar la tensión muscular, reducir el dolor de origen muscular, mejorar la movilidad articular y apoyar la recuperación tanto del deporte como de la carga diaria.</p>
+    <p data-key="about-p2">Los efectos de los tratamientos son individuales, y el alivio puede notarse con frecuencia ya desde las primeras sesiones.</p>
+    <p data-key="about-p3">Los tratamientos son especialmente adecuados para abordar molestias de origen muscular, así como para prevenirlas.</p>
+    <p data-key="about-p4">El cuerpo humano es una herramienta importante que necesita mantenimiento y movimiento regulares para funcionar de la mejor manera posible.</p>
+    <div class="cert-badge" data-key="about-cert">Certificada – Sport Massage Institute of Finland</div>
+  </div>
+  <div class="about-visual">
+    <div class="about-visual-inner">
+      <span class="big-num">100%</span>
+      <p data-key="about-visual-p">Profesional certificada</p>
+    </div>
+  </div>
+</section>
+
+<section class="services-section" id="servicios">
+  <div class="services-header reveal">
+    <p class="section-tag" data-key="services-tag">Tratamientos</p>
+    <h2 class="section-title" data-key="services-title">Nuestros Servicios</h2>
+  </div>
+  <div class="services-grid">
+
+    <div class="service-card reveal">
+      <span class="service-icon">🤲</span>
+      <h3 data-key="s-clasico-title">Masaje Clásico</h3>
+      <p class="service-desc" data-key="s-clasico-desc">Un masaje completo de cuerpo entero con técnicas tradicionales. Alivia la tensión acumulada, mejora la circulación y deja una sensación de calma profunda.</p>
+      <div class="price-table">
+        <div class="price-row"><span>30 min</span><span class="price">29 €</span></div>
+        <div class="price-row"><span>45 min</span><span class="price">40 €</span></div>
+        <div class="price-row"><span>60 min</span><span class="price">50 €</span></div>
+        <div class="price-row"><span>90 min</span><span class="price">65 €</span></div>
+        <div class="price-row"><span>120 min</span><span class="price">90 €</span></div>
+      </div>
+      <a href="https://wa.me/34624043365" class="book-btn" target="_blank"><svg viewBox="0 0 24 24"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg><span data-key="btn-book">Reservar por WhatsApp</span></a>
+    </div>
+
+    <div class="service-card reveal">
+      <span class="service-icon">🏃</span>
+      <h3 data-key="s-deportivo-title">Masaje Deportivo</h3>
+      <p class="service-desc" data-key="s-deportivo-desc">Diseñado para deportistas y personas activas. Acelera la recuperación muscular, previene lesiones y trabaja en profundidad sobre contracturas y sobrecargas.</p>
+      <div class="price-table">
+        <div class="price-row"><span>30 min</span><span class="price">29 €</span></div>
+        <div class="price-row"><span>45 min</span><span class="price">40 €</span></div>
+        <div class="price-row"><span>60 min</span><span class="price">50 €</span></div>
+        <div class="price-row"><span>90 min</span><span class="price">65 €</span></div>
+        <div class="price-row"><span>120 min</span><span class="price">90 €</span></div>
+      </div>
+      <a href="https://wa.me/34624043365" class="book-btn" target="_blank"><svg viewBox="0 0 24 24"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg><span data-key="btn-book">Reservar por WhatsApp</span></a>
+    </div>
+
+    <div class="service-card reveal">
+      <span class="service-icon">💻</span>
+      <h3 data-key="s-office-title">Masaje Trabajador de Oficina</h3>
+      <div class="service-desc" data-key="s-office-desc"><ul class="service-list"><li>Flexores de cadera tensos</li><li>Músculos pectorales acortados</li><li>Tensión en cuello y hombros</li><li>Cabeza adelantada</li><li>Posibles dolores de cabeza</li></ul>Para todos estos problemas el masaje ofrece alivio liberando la tensión muscular y mejorando la postura.</div>
+      <div class="single-price">50 € <span>60 min</span></div>
+      <a href="https://wa.me/34624043365" class="book-btn" target="_blank"><svg viewBox="0 0 24 24"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg><span data-key="btn-book">Reservar por WhatsApp</span></a>
+    </div>
+
+    <div class="service-card reveal">
+      <span class="service-icon">🦷</span>
+      <h3 data-key="s-intraoral-title">Masaje Intraoral<br><small style="font-size:0.6em;opacity:0.5;font-family:'Jost',sans-serif;font-weight:300">Músculo masetero</small></h3>
+      <p class="service-desc" data-key="s-intraoral-desc">Tratamiento especializado de los músculos masticatorios, desde la zona facial exterior hasta el interior de la boca. Muy eficaz para dolores de cabeza, bruxismo y tensión mandibular.</p>
+      <div class="single-price">40 € <span>45 min</span></div>
+      <a href="https://wa.me/34624043365" class="book-btn" target="_blank"><svg viewBox="0 0 24 24"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg><span data-key="btn-book">Reservar por WhatsApp</span></a>
+    </div>
+
+    <div class="service-card reveal">
+      <span class="service-icon">🌊</span>
+      <h3 data-key="s-linfatico-title">Masaje Linfático</h3>
+      <p class="service-desc" data-key="s-linfatico-desc">Técnica suave y rítmica que estimula el sistema linfático para eliminar toxinas, reducir la retención de líquidos y fortalecer las defensas del organismo.</p>
+      <div class="price-table">
+        <div class="price-row"><span>45 min</span><span class="price">40 €</span></div>
+        <div class="price-row"><span>60 min</span><span class="price">50 €</span></div>
+        <div class="price-row"><span>90 min</span><span class="price">65 €</span></div>
+      </div>
+      <a href="https://wa.me/34624043365" class="book-btn" target="_blank"><svg viewBox="0 0 24 24"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg><span data-key="btn-book">Reservar por WhatsApp</span></a>
+    </div>
+
+    <div class="service-card reveal">
+      <span class="service-icon">⛳</span>
+      <h3 data-key="s-golf-title">Masaje de Golf</h3>
+      <div class="service-desc" data-key="s-golf-desc"><ul class="service-list"><li>Manguito rotador del hombro</li><li>Pecho</li><li>Espalda superior</li><li>Cadera</li><li>Core</li></ul>Favorece la recuperación, mejora la movilidad rotatoria de la columna y apoya la función del hombro.</div>
+      <div class="single-price">50 € <span>60 min</span></div>
+      <a href="https://wa.me/34624043365" class="book-btn" target="_blank"><svg viewBox="0 0 24 24"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg><span data-key="btn-book">Reservar por WhatsApp</span></a>
+    </div>
+
+    <div class="service-card reveal">
+      <span class="service-icon">🎾</span>
+      <h3 data-key="s-padel-title">Masaje de Pádel</h3>
+      <div class="service-desc" data-key="s-padel-desc"><ul class="service-list"><li>Manguito rotador del hombro</li><li>Pecho</li><li>Espalda superior</li><li>Cadera</li><li>Core</li><li>Antebrazo</li><li>Muñeca</li><li>Piernas</li></ul>Mejora la movilidad del hombro para potenciar la técnica y la fuerza. Recupera el tejido muscular de la tensión en las piernas.</div>
+      <div class="single-price">65 € <span>90 min</span></div>
+      <a href="https://wa.me/34624043365" class="book-btn" target="_blank"><svg viewBox="0 0 24 24"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg><span data-key="btn-book">Reservar por WhatsApp</span></a>
+    </div>
+
+    <div class="service-card reveal">
+      <span class="service-icon">🥗</span>
+      <h3 data-key="s-nutri-title">Asesoramiento Nutricional</h3>
+      <p class="service-desc" data-key="s-nutri-desc">Entrevista y establecimiento de objetivos. Los objetivos se crean en base a un diario de alimentación de tres días. Recibirás una dieta que promueve la salud y el bienestar, es decir, los pasos del poder de la nutrición.</p>
+      <div class="single-price">80 € <span>sesión</span></div>
+      <a href="https://wa.me/34624043365" class="book-btn" target="_blank"><svg viewBox="0 0 24 24"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg><span data-key="btn-book">Reservar por WhatsApp</span></a>
+    </div>
+
+    <div class="service-card reveal">
+      <span class="service-icon">💪</span>
+      <h3 data-key="s-pt-title">Entrenamiento Personal</h3>
+      <p class="service-desc" data-key="s-pt-desc">Un programa de entrenamiento personalizado teniendo en cuenta factores como la edad, el género, la condición física, las lesiones y los objetivos.</p>
+      <div class="single-price">60 € <span>sesión</span></div>
+      <a href="https://wa.me/34624043365" class="book-btn" target="_blank"><svg viewBox="0 0 24 24"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg><span data-key="btn-book">Reservar por WhatsApp</span></a>
+    </div>
+
+  </div>
+</section>
+
+<section class="reviews-section">
+  <div class="reviews-shell">
+    <div class="reviews-header reveal">
+      <p class="section-tag" data-key="reviews-tag">Testimonios</p>
+      <h2 class="section-title" data-key="reviews-title">Reseñas reales de Google que hablan por sí solas</h2>
+      <p class="reviews-sub" data-key="reviews-sub">Una selección de comentarios 5 estrellas de clientes que valoran el trato, la profesionalidad y el alivio que sienten después de cada sesión.</p>
+    </div>
+
+    <div class="reviews-grid">
+      <article class="review-card reveal">
+        <div class="review-stars">★★★★★</div>
+        <p class="review-text" data-key="review-1-text">“Gran profesional. Salí mucho mejor después de la sesión y con ganas de volver.”</p>
+        <div class="review-name" data-key="review-1-name">Cliente de Google</div>
+      </article>
+      <article class="review-card reveal">
+        <div class="review-stars">★★★★★</div>
+        <p class="review-text" data-key="review-2-text">“Trato cercano, masaje muy efectivo y una sensación de alivio real desde el primer momento.”</p>
+        <div class="review-name" data-key="review-2-name">Reseña 5 estrellas</div>
+      </article>
+      <article class="review-card reveal">
+        <div class="review-stars">★★★★★</div>
+        <p class="review-text" data-key="review-3-text">“Muy recomendable si buscas una terapeuta profesional, atenta y realmente implicada.”</p>
+        <div class="review-name" data-key="review-3-name">Opinión verificada</div>
+      </article>
+    </div>
+
+    <div class="reviews-marquee reveal" aria-hidden="true">
+      <div class="reviews-track">
+        <div class="reviews-pill"><strong>★★★★★</strong><span data-key="marquee-1">Muy profesional y cercana</span></div>
+        <div class="reviews-pill"><strong>★★★★★</strong><span data-key="marquee-2">Alivio real desde la primera sesión</span></div>
+        <div class="reviews-pill"><strong>★★★★★</strong><span data-key="marquee-3">La mejor experiencia de masaje en Fuengirola</span></div>
+        <div class="reviews-pill"><strong>★★★★★</strong><span data-key="marquee-4">Volveré sin dudarlo</span></div>
+        <div class="reviews-pill"><strong>★★★★★</strong><span data-key="marquee-5">Atención impecable y personalizada</span></div>
+        <div class="reviews-pill"><strong>★★★★★</strong><span data-key="marquee-1">Muy profesional y cercana</span></div>
+        <div class="reviews-pill"><strong>★★★★★</strong><span data-key="marquee-2">Alivio real desde la primera sesión</span></div>
+        <div class="reviews-pill"><strong>★★★★★</strong><span data-key="marquee-3">La mejor experiencia de masaje en Fuengirola</span></div>
+        <div class="reviews-pill"><strong>★★★★★</strong><span data-key="marquee-4">Volveré sin dudarlo</span></div>
+        <div class="reviews-pill"><strong>★★★★★</strong><span data-key="marquee-5">Atención impecable y personalizada</span></div>
+      </div>
+    </div>
+
+    <div class="reviews-cta reveal">
+      <a href="https://www.google.es/maps/place/Sports+massage+Fuengirola/@36.5685807,-4.632545,15.2z/data=!4m8!3m7!1s0xd72e3f84875b567:0xa6c47ebe7487934f!8m2!3d36.5653375!4d-4.6175183!9m1!1b1!16s%2Fg%2F11yp7t35wg?entry=ttu&g_ep=EgoyMDI2MDQyNy4wIKXMDSoASAFQAw%3D%3D" class="google-btn" target="_blank" rel="noopener noreferrer">
+        <svg viewBox="0 0 24 24"><path d="M12 11.2v2.9h6.8c-.3 1.7-2 5-6.8 5-4.1 0-7.4-3.4-7.4-7.5S7.9 4 12 4c2.3 0 3.9 1 4.8 1.9l2.3-2.3C17.6 2.1 15.1 1 12 1 5.9 1 1 5.9 1 12s4.9 11 11 11c6.3 0 10.5-4.4 10.5-10.6 0-.7-.1-1.2-.2-1.7H12z"/></svg>
+        <span data-key="reviews-btn">Valórame en Google</span>
+      </a>
+    </div>
+  </div>
+</section>
+
+<section class="cta-strip">
+  <h2 data-key="cta-title">¿Lista para tu sesión?</h2>
+  <p data-key="cta-sub">Contáctame directamente por WhatsApp y reservamos tu cita con Sofía.</p>
+  <a href="https://wa.me/34624043365" class="book-btn" target="_blank">
+    <svg viewBox="0 0 24 24"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
+    <span data-key="cta-btn">Escribir por WhatsApp</span>
+  </a>
+</section>
+
+<section class="info-section" id="contacto">
+  <div class="info-block reveal">
+    <p class="section-tag" data-key="info-tag1">Dónde encontrarme</p>
+    <h3 data-key="info-title1">Ubicación</h3>
+    <div class="info-item"><span class="ico">📍</span><p><strong>Dirección</strong>Fuengirola</p></div>
+    <div class="info-item"><span class="ico">💬</span><p><strong>WhatsApp / Teléfono</strong><a href="https://wa.me/34624043365" style="color:var(--teal);text-decoration:none">+34 624 04 33 65</a></p></div>
+  </div>
+  <div class="info-block reveal">
+    <p class="section-tag" data-key="info-tag2">Horario</p>
+    <h3 data-key="info-title2">Disponibilidad</h3>
+    <div class="info-item"><span class="ico">🕐</span><p data-key="info-hours"><strong>Lunes – Viernes</strong>9:00 – 19:00<br><strong>Sábados</strong>10:00 – 15:00<br><strong>Domingos</strong>10:00 – 14:00</p></div>
+    <div class="info-item"><span class="ico">📱</span><p data-key="info-whatsapp-note">Escríbenos por WhatsApp para confirmar nuestra disponibilidad y encontrar el mejor horario para ti.</p></div>
+    <a href="https://wa.me/34624043365" class="book-btn" target="_blank">
+      <svg viewBox="0 0 24 24"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
+      <span data-key="info-contact-btn">Consultar disponibilidad</span>
+    </a>
+  </div>
+</section>
+
+<footer>
+  <div class="footer-left">Sport Massage in Fuengirola · Fuengirola</div>
+  <div class="footer-right">© 2026 · Todos los derechos reservados · <a href="legal.html" style="color:rgba(255,255,255,0.45);text-decoration:none;" onmouseover="this.style.color='#c9a96e'" onmouseout="this.style.color='rgba(255,255,255,0.45)'">Información Legal</a></div>
+</footer>
+
+<div class="studio-bar" role="contentinfo">
+  <span class="studio-bar__label">Desarrollado y mantenido por</span>
+  <a class="studio-bar__link" href="https://webfuengirola.com" target="_blank" rel="noreferrer">Web Fuengirola Studio</a>
+</div>
+
+<script>
+const translations = {
+  es: {
+    "nav-services":"Servicios","nav-blog":"Blog","nav-about":"Sobre mí","nav-contact":"Contacto",
+    "hero-eyebrow":"Sport Massage in Fuengirola · Fuengirola",
+    "hero-h1":"Masaje profesional<br><em>especializado</em>",
+    "hero-sub":"Sofía — masajista certificada con formación finlandesa. Técnicas terapéuticas y deportivas para recuperar tu cuerpo y bienestar.",
+    "hero-btn":"Reservar cita por WhatsApp",
+    "about-tag":"Tu terapeuta",
+    "about-title":"Sofía —<br>Formación finlandesa,<br>pasión por la salud",
+    "about-p1":"Ofrezco tratamientos de masaje personalizados para favorecer el equilibrio del cuerpo. Los tratamientos ayudan a aliviar la tensión muscular, reducir el dolor de origen muscular, mejorar la movilidad articular y apoyar la recuperación tanto del deporte como de la carga diaria.",
+    "about-p2":"Los efectos de los tratamientos son individuales, y el alivio puede notarse con frecuencia ya desde las primeras sesiones.",
+    "about-p3":"Los tratamientos son especialmente adecuados para abordar molestias de origen muscular, así como para prevenirlas.",
+    "about-p4":"El cuerpo humano es una herramienta importante que necesita mantenimiento y movimiento regulares para funcionar de la mejor manera posible.",
+    "about-cert":"Certificada – Sport Massage Institute of Finland","about-visual-p":"Profesional certificada",
+    "services-tag":"Tratamientos","services-title":"Nuestros Servicios",
+    "s-clasico-title":"Masaje Clásico",
+    "s-clasico-desc":"Un masaje completo de cuerpo entero con técnicas suecas tradicionales. Alivia la tensión acumulada, mejora la circulación y deja una sensación de calma profunda.",
+    "s-deportivo-title":"Masaje Deportivo",
+    "s-deportivo-desc":"Diseñado para deportistas y personas activas. Acelera la recuperación muscular, previene lesiones y trabaja en profundidad sobre contracturas y sobrecargas.",
+    "s-intraoral-title":"Masaje Intraoral",
+    "s-intraoral-desc":"Tratamiento especializado de los músculos masticatorios, desde la zona facial exterior hasta el interior de la boca. Muy eficaz para dolores de cabeza, bruxismo y tensión mandibular.",
+    "s-linfatico-title":"Masaje Linfático",
+    "s-linfatico-desc":"Técnica suave y rítmica que estimula el sistema linfático para eliminar toxinas, reducir la retención de líquidos y fortalecer las defensas del organismo.",
+    "s-office-title":"Masaje Trabajador de Oficina",
+    "s-office-desc":"<ul class=\"service-list\"><li>Flexores de cadera tensos</li><li>Músculos pectorales acortados</li><li>Tensión en cuello y hombros</li><li>Cabeza adelantada</li><li>Posibles dolores de cabeza</li></ul>Para todos estos problemas el masaje ofrece alivio liberando la tensión muscular y mejorando la postura.",
+    "s-golf-title":"Masaje de Golf",
+    "s-golf-desc":"<ul class=\"service-list\"><li>Manguito rotador del hombro</li><li>Pecho</li><li>Espalda superior</li><li>Cadera</li><li>Core</li></ul>Favorece la recuperación, mejora la movilidad rotatoria de la columna y apoya la función del hombro.",
+    "s-padel-title":"Masaje de Pádel",
+    "s-padel-desc":"<ul class=\"service-list\"><li>Manguito rotador del hombro</li><li>Pecho</li><li>Espalda superior</li><li>Cadera</li><li>Core</li><li>Antebrazo</li><li>Muñeca</li><li>Piernas</li></ul>Mejora la movilidad del hombro para potenciar la técnica y la fuerza. Recupera el tejido muscular de la tensión en las piernas.",
+    "s-nutri-title":"Asesoramiento Nutricional",
+    "s-nutri-desc":"Entrevista y establecimiento de objetivos. Los objetivos se crean en base a un diario de alimentación de tres días. Recibirás una dieta que promueve la salud y el bienestar, es decir, los pasos del poder de la nutrición.",
+    "s-pt-title":"Entrenamiento Personal",
+    "s-pt-desc":"Un programa de entrenamiento personalizado teniendo en cuenta factores como la edad, el género, la condición física, las lesiones y los objetivos.",
+    "btn-book":"Reservar por WhatsApp",
+    "reviews-tag":"Testimonios",
+    "reviews-title":"Reseñas reales de Google que hablan por sí solas",
+    "reviews-sub":"Una selección de comentarios 5 estrellas de clientes que valoran el trato, la profesionalidad y el alivio que sienten después de cada sesión.",
+    "review-1-text":"“Gran profesional. Salí mucho mejor después de la sesión y con ganas de volver.”",
+    "review-1-name":"Cliente de Google",
+    "review-2-text":"“Trato cercano, masaje muy efectivo y una sensación de alivio real desde el primer momento.”",
+    "review-2-name":"Reseña 5 estrellas",
+    "review-3-text":"“Muy recomendable si buscas una terapeuta profesional, atenta y realmente implicada.”",
+    "review-3-name":"Opinión verificada",
+    "marquee-1":"Muy profesional y cercana",
+    "marquee-2":"Alivio real desde la primera sesión",
+    "marquee-3":"La mejor experiencia de masaje en Fuengirola",
+    "marquee-4":"Volveré sin dudarlo",
+    "marquee-5":"Atención impecable y personalizada",
+    "reviews-btn":"Valórame en Google",
+    "cta-title":"¿Lista para tu sesión?","cta-sub":"Contáctame directamente por WhatsApp y reservamos tu cita con Sofía.","cta-btn":"Escribir por WhatsApp",
+    "info-tag1":"Dónde encontrarme","info-title1":"Ubicación","info-tag2":"Horario","info-title2":"Disponibilidad",
+    "info-hours":"<strong>Lunes – Viernes</strong>9:00 – 19:00<br><strong>Sábados</strong>10:00 – 15:00<br><strong>Domingos</strong>10:00 – 14:00",
+    "info-whatsapp-note":"Escríbenos por WhatsApp para confirmar nuestra disponibilidad y encontrar el mejor horario para ti.",
+    "info-contact-btn":"Consultar disponibilidad",
+  },
+  en: {
+    "nav-services":"Services","nav-blog":"Blog","nav-about":"About","nav-contact":"Contact",
+    "hero-eyebrow":"Sport Massage in Fuengirola · Fuengirola",
+    "hero-h1":"Professional massage,<br><em>specialised care</em>",
+    "hero-sub":"Sofia — a certified Finnish-trained massage therapist. Therapeutic and sports techniques to restore your body and wellbeing.",
+    "hero-btn":"Book via WhatsApp",
+    "about-tag":"Your therapist",
+    "about-title":"Sofia —<br>Finnish training,<br>passion for health",
+    "about-p1":"I offer individually tailored massage treatments to support the balance of the body. The treatments help relieve muscle tension, ease muscle-related pain, improve joint mobility, and support recovery from both sports and everyday strain.",
+    "about-p2":"The effects of the treatments are individual, and relief can often be felt after just the first sessions.",
+    "about-p3":"These treatments are especially suitable for addressing muscle-related issues as well as for their prevention.",
+    "about-p4":"The human body is an important tool that requires regular maintenance and movement to function at its best.",
+    "about-cert":"Certified – Sport Massage Institute of Finland","about-visual-p":"Certified professional",
+    "services-tag":"Treatments","services-title":"Our Services",
+    "s-clasico-title":"Classic Massage",
+    "s-clasico-desc":"A full-body massage using traditional Swedish techniques. Relieves accumulated tension, improves circulation and leaves you feeling deeply calm.",
+    "s-deportivo-title":"Sports Massage",
+    "s-deportivo-desc":"Designed for athletes and active people. Speeds up muscle recovery, prevents injuries and works deeply on tension and overload.",
+    "s-intraoral-title":"Intraoral Massage",
+    "s-intraoral-desc":"Specialised treatment of the masticatory muscles, from the outer face to inside the mouth. Very effective for headaches caused by bruxism and jaw tension.",
+    "s-linfatico-title":"Lymphatic Massage",
+    "s-linfatico-desc":"A gentle, rhythmic technique that stimulates the lymphatic system to eliminate toxins, reduce fluid retention and strengthen the immune system.",
+    "s-office-title":"Office Worker Massage",
+    "s-office-desc":"<ul class=\"service-list\"><li>Tight hip flexors</li><li>Shortened chest muscles</li><li>Tension in the neck and shoulder area</li><li>Forward head posture</li><li>Possible headaches</li></ul>Relief for all of these can be achieved through massage by releasing muscle tension and improving posture.",
+    "s-golf-title":"Golf Massage",
+    "s-golf-desc":"<ul class=\"service-list\"><li>Rotator cuff of the shoulder</li><li>Chest</li><li>Upper back</li><li>Hips</li><li>Core</li></ul>Promotes recovery, improves spinal rotation mobility, and supports shoulder function.",
+    "s-padel-title":"Padel Massage",
+    "s-padel-desc":"<ul class=\"service-list\"><li>Rotator cuff of the shoulder</li><li>Chest</li><li>Upper back</li><li>Hips</li><li>Core</li><li>Forearm</li><li>Wrist</li><li>Lower body</li></ul>Improves shoulder joint mobility, enhancing technique and power generation. Helps release muscle tension and supports recovery in the lower body.",
+    "s-nutri-title":"Nutritional Counselling",
+    "s-nutri-desc":"Interview and goal setting. Goals are created based on a three-day food diary. You will receive a diet that promotes health and wellbeing — the steps to the power of nutrition.",
+    "s-pt-title":"Personal Training",
+    "s-pt-desc":"A personalised training programme taking into account factors such as age, gender, physical condition, injuries and goals.",
+    "btn-book":"Book via WhatsApp",
+    "reviews-tag":"Testimonials",
+    "reviews-title":"Real Google reviews that speak for themselves",
+    "reviews-sub":"A curated selection of 5-star comments from clients who value the care, professionalism and relief they feel after each session.",
+    "review-1-text":"“A great professional. I left feeling much better after the session and ready to come back.”",
+    "review-1-name":"Google client",
+    "review-2-text":"“Warm, friendly care, a very effective massage and real relief from the very first moment.”",
+    "review-2-name":"5-star review",
+    "review-3-text":"“Highly recommended if you are looking for a professional therapist who is attentive and truly committed.”",
+    "review-3-name":"Verified opinion",
+    "marquee-1":"Very professional and friendly",
+    "marquee-2":"Real relief from the first session",
+    "marquee-3":"The best massage experience in Fuengirola",
+    "marquee-4":"I will definitely come back",
+    "marquee-5":"Impeccable and personalised care",
+    "reviews-btn":"Review me on Google",
+    "cta-title":"Ready for your session?","cta-sub":"Contact Sofia directly on WhatsApp to book your appointment.","cta-btn":"Message on WhatsApp",
+    "info-tag1":"Find me","info-title1":"Location","info-tag2":"Schedule","info-title2":"Availability",
+    "info-hours":"<strong>Monday – Friday</strong>9:00 – 19:00<br><strong>Saturdays</strong>10:00 – 15:00<br><strong>Sundays</strong>10:00 – 14:00",
+    "info-whatsapp-note":"Message us on WhatsApp to confirm our availability and find the best time for you.",
+    "info-contact-btn":"Check availability",
+  },
+  fi: {
+    "nav-services":"Palvelut","nav-blog":"Blogi","nav-about":"Tietoa minusta","nav-contact":"Yhteystiedot",
+    "hero-eyebrow":"Sport Massage  Fuengirolassa · Fuengirola",
+    "hero-h1":"Ammattimainen hieronta,<br><em>erikoistunutta hoitoa</em>",
+    "hero-sub":"Sofia — sertifioitu suomalaiskoulutettu hieroja. Terapeuttiset ja urheiluhieronnat kehosi ja hyvinvointisi palautumiseen.",
+    "hero-btn":"Varaa aika WhatsAppilla",
+    "about-tag":"Terapeutti",
+    "about-title":"Sofia —<br>Suomalainen koulutus,<br>intohimona terveys",
+    "about-p1":"Tarjoan kehon tasapainon tueksi yksilöllisesti räätälöityjä hierontahoitoja. Hoidot auttavat lihasjännityksiin, lievittävät lihasperäisiä särkyjä, edistävät nivelten liikkuvuutta sekä tukevat palautumista niin urheilusta että arjen kuormituksesta.",
+    "about-p2":"Hoitojen vaikutukset ovat yksilöllisiä, ja helpotusta voidaan usein saada jo ensimmäisten hoitokertojen jälkeen.",
+    "about-p3":"Käsittelyt soveltuvat erityisesti lihasperäisten vaivojen hoitoon sekä niiden ennaltaehkäisyyn.",
+    "about-p4":"Ihmiskeho on tärkeä työkalu, joka tarvitsee säännöllistä huoltoa ja liikettä toimiakseen parhaalla mahdollisella tavalla.",
+    "about-cert":"Sertifioitu – Sport Massage Institute of Finland","about-visual-p":"Sertifioitu ammattilainen",
+    "services-tag":"Hoidot","services-title":"Palvelumme",
+    "s-clasico-title":"Klassinen Hieronta",
+    "s-clasico-desc":"Koko kehon hieronta perinteisillä ruotsalaisilla tekniikoilla. Lievittää kertynyttä jännitystä, parantaa verenkiertoa ja jättää syvästi rentoutuneen olon.",
+    "s-deportivo-title":"Urheiluhieronta",
+    "s-deportivo-desc":"Suunniteltu urheilijoille ja aktiivisille ihmisille. Nopeuttaa lihasten palautumista, ehkäisee vammoja ja työskentelee syvästi jännitystä ja ylikuormitusta vastaan.",
+    "s-intraoral-title":"Purentalihashieronta",
+    "s-intraoral-desc":"Erikoistunut hoito purelihaksille – sekä kasvojen ulkopuolelta että suun sisäpuolelta. Erittäin tehokas bruksismista johtuviin päänsärkyihin ja leuan jännitystiloihin.",
+    "s-linfatico-title":"Lymfahieronta",
+    "s-linfatico-desc":"Lempeä, rytminen tekniikka, joka stimuloi lymfajärjestelmää poistamaan myrkkyjä, vähentämään nesteen kertymistä ja vahvistamaan kehon puolustusjärjestelmää.",
+    "s-office-title":"Toimistotyöntekijän Hieronta",
+    "s-office-desc":"<ul class=\"service-list\"><li>Kiristyneet lonkankoukistajat</li><li>Lyhentyneet rintalihakset</li><li>Jännittynyt niska-hartiaseutu</li><li>Eteen työntynyt pää</li><li>Mahdolliset päänsäryt</li></ul>Kaikkiin näihin löytyy helpotus hieronnasta vapauttaen lihasjännitystä ja parantaen ryhtiä.",
+    "s-golf-title":"Golfhieronta",
+    "s-golf-desc":"<ul class=\"service-list\"><li>Olkapään kiertäjäkalvosin</li><li>Rintakehä</li><li>Yläselkä</li><li>Lantio</li><li>Keskivartalo</li></ul>Edistää palautumista, parantaa rangan kiertoliikkuvuutta ja tukee olkapään toimintaa.",
+    "s-padel-title":"Padel-Hieronta",
+    "s-padel-desc":"<ul class=\"service-list\"><li>Olkapään kiertäjäkalvosin</li><li>Rintakehä</li><li>Yläselkä</li><li>Lantio</li><li>Keskivartalo</li><li>Kyynärvarsi</li><li>Ranne</li><li>Alaraajat</li></ul>Parantaa olkanivelen liikkuvuutta, parantaa tekniikkaa ja tehostaa voimantuottoa. Palauttaa lihaskudosta jännityksestä alaraajoissa.",
+    "s-nutri-title":"Ravitsemusneuvonta",
+    "s-nutri-desc":"Haastattelu ja tavoitteiden asettaminen. Tavoitteet luodaan kolmen päivän ruokapäiväkirjan pohjalta. Saat ravitsemussuunnitelman, joka edistää terveyttä ja hyvinvointia.",
+    "s-pt-title":"Henkilökohtainen Valmennus",
+    "s-pt-desc":"Henkilökohtainen harjoitusohjelma, jossa huomioidaan ikä, sukupuoli, fyysinen kunto, vammat ja tavoitteet.",
+    "btn-book":"Varaa WhatsAppilla",
+    "reviews-tag":"Arviot",
+    "reviews-title":"Aidot Google-arvostelut puhuvat puolestaan",
+    "reviews-sub":"Valikoima 5 tähden palautteita asiakkailta, jotka arvostavat hoidon laatua, ammattitaitoa ja helpotusta jokaisen käynnin jälkeen.",
+    "review-1-text":"“Huippuammattilainen. Lähdin hoidosta paljon paremmassa kunnossa ja varasin mielelläni uudelleen.”",
+    "review-1-name":"Google-asiakas",
+    "review-2-text":"“Lämmin kohtaaminen, tehokas hieronta ja todellinen helpotus heti ensimmäisestä hetkestä.”",
+    "review-2-name":"5 tähden arvio",
+    "review-3-text":"“Todella suositeltava, jos etsit ammattitaitoista, huomaavaista ja aidosti välittävää terapeuttia.”",
+    "review-3-name":"Vahvistettu palaute",
+    "marquee-1":"Todella ammattitaitoinen ja lämmin",
+    "marquee-2":"Aitoa helpotusta jo ensimmäisestä käynnistä",
+    "marquee-3":"Paras hierontakokemus Fuengirolassa",
+    "marquee-4":"Palaan varmasti uudelleen",
+    "marquee-5":"Huolellista ja yksilöllistä hoitoa",
+    "reviews-btn":"Arvostele minut Googlessa",
+    "cta-title":"Valmis hoitoon?","cta-sub":"Ota yhteyttä Sofiaan suoraan WhatsAppin kautta ja sovitaan aika.","cta-btn":"Lähetä viesti WhatsAppissa",
+    "info-tag1":"Missä olen","info-title1":"Sijainti","info-tag2":"Aikataulu","info-title2":"Saatavuus",
+    "info-hours":"<strong>Maanantai – Perjantai</strong>9:00 – 19:00<br><strong>Lauantait</strong>10:00 – 15:00<br><strong>Sunnuntait</strong>10:00 – 14:00",
+    "info-whatsapp-note":"Lähetä meille WhatsApp-viesti varmistaaksesi saatavuutemme ja löytääksesi sinulle sopivan ajan.",
+    "info-contact-btn":"Tarkista saatavuus",
+  }
+};
+
+function setLang(lang) {
+  const t = translations[lang];
+  document.querySelectorAll('[data-key]').forEach(el => { const k = el.dataset.key; if (t[k]) el.innerHTML = t[k]; });
+  document.querySelectorAll('.lang button').forEach(b => b.classList.remove('active'));
+  document.getElementById('btn-' + lang).classList.add('active');
+  document.documentElement.lang = lang;
+}
+
+const observer = new IntersectionObserver(entries => {
+  entries.forEach(e => { if (e.isIntersecting) e.target.classList.add('visible'); });
+}, { threshold: 0.1 });
+document.querySelectorAll('.reveal').forEach(el => observer.observe(el));
+</script>
+
+<script>
+/* cookie-banner-core — inline (source: @lab-world/core feature/cookie-banner-core) */
+(function(){var b=function(c){var k=c.storageKey||'cookie_consent';if(localStorage.getItem(k))return;var i=c.imageSrc?'<div class="cookie-banner-img-container"><img src="'+c.imageSrc+'" alt="'+(c.imageAlt||'')+'" class="cookie-banner-img"></div>':'';var h='<div class="cookie-banner-wrapper"><div class="cookie-banner-card">'+i+'<h2>'+(c.title||'')+'</h2>'+(c.noticeHtml||'')+'<div class="cookie-banner-buttons"><button class="cb-reject cookie-btn btn-cookie-secondary">'+(c.rejectLabel||'Rechazar')+'</button><button class="cb-accept cookie-btn btn-cookie-primary">'+(c.acceptLabel||'Aceptar')+'</button></div><div class="cookie-banner-footer"><a href="'+(c.configUrl||c.policyUrl||'#')+'" class="cookie-config-link">'+(c.configLabel||'')+'</a></div></div></div>';var t=document.createElement('div');t.innerHTML=h;var w=t.firstChild;document.body.appendChild(w);w.style.display='block';w.querySelector('.cb-accept').addEventListener('click',function(){localStorage.setItem(k,'accepted');w.style.display='none';});w.querySelector('.cb-reject').addEventListener('click',function(){localStorage.setItem(k,'rejected');w.style.display='none';});};window.CookieBannerCore={init:b};})();
+
+(function () {
+  var lang = 'es';
+  try { lang = localStorage.getItem('smf-lang') || 'es'; } catch(e) {}
+  var texts = {
+    es: { title: 'Usamos cookies', notice: 'Esta web utiliza cookies propias para guardar tu preferencia de idioma.', ok: 'Aceptar', reject: 'Rechazar', policy: 'Política de cookies' },
+    en: { title: 'We use cookies', notice: 'This site uses cookies to save your language preference.', ok: 'Accept', reject: 'Decline', policy: 'Cookie policy' },
+    fi: { title: 'Käytämme evästeitä', notice: 'Sivusto käyttää evästeitä kielivalintasi tallentamiseen.', ok: 'Hyväksy', reject: 'Hylkää', policy: 'Evästekäytäntö' }
+  };
+  var t = texts[lang] || texts.es;
+  CookieBannerCore.init({
+    storageKey:  'smf-cookie-consent',
+    title:       t.title,
+    noticeHtml:  '<p>' + t.notice + ' <a class="cookie-link" href="legal.html#cookies">' + t.policy + '</a></p>',
+    acceptLabel: t.ok,
+    rejectLabel: t.reject,
+    configLabel: t.policy,
+    configUrl:   'legal.html#cookies'
+  });
+})();
+</script>
+
+<div id="smf-cookie-panel" role="dialog" aria-modal="true" style="display:none;position:fixed;inset:0;z-index:1000001;background:rgba(11,32,53,0.6);align-items:center;justify-content:center;padding:20px;">
+  <div id="smf-cookie-panel-box" style="background:#fcfaf6;max-width:600px;width:100%;max-height:82vh;overflow-y:auto;padding:44px 40px;border-radius:4px;position:relative;box-shadow:0 24px 64px rgba(11,32,53,0.22);">
+    <button id="smf-cookie-panel-close" aria-label="Cerrar" style="position:absolute;top:16px;right:20px;background:none;border:none;cursor:pointer;font-size:1.4rem;color:#5f5a55;line-height:1;font-family:inherit;padding:4px;">×</button>
+    <div id="smf-cookie-panel-body"></div>
+  </div>
+</div>
+<script>
+(function () {
+  var panel  = document.getElementById('smf-cookie-panel');
+  var body   = document.getElementById('smf-cookie-panel-body');
+  var cs = {
+    es: {
+      title: 'Política de Cookies',
+      whatH: '¿Qué es una cookie?',
+      what:  'Una cookie es un pequeño archivo de texto que un sitio web guarda en el navegador del usuario. Permite que el sitio recuerde información de visitas anteriores para facilitar la navegación.',
+      usedH: 'Cookies utilizadas en este sitio',
+      used1: 'Este sitio web no utiliza cookies de seguimiento, analítica ni publicidad de terceros.',
+      used2: 'Solo se usa una cookie propia para recordar tu preferencia de idioma (español, inglés o finés). Esta cookie es estrictamente funcional.',
+      used3: 'Si en el futuro se añaden otras cookies, esta política se actualizará y se solicitará tu consentimiento antes de activarlas.',
+    },
+    en: {
+      title: 'Cookie Policy',
+      whatH: 'What is a cookie?',
+      what:  'A cookie is a small text file that a website stores in the user\'s browser. It allows the site to remember information from previous visits to ease navigation.',
+      usedH: 'Cookies used on this site',
+      used1: 'This website does not use tracking, analytics or third-party advertising cookies.',
+      used2: 'Only one first-party cookie is used to remember your language preference (Spanish, English or Finnish). This cookie is strictly functional.',
+      used3: 'If other cookies are added in the future, this policy will be updated and your consent will be requested before activating them.',
+    },
+    fi: {
+      title: 'Evästekäytäntö',
+      whatH: 'Mikä on eväste?',
+      what:  'Eväste on pieni tekstitiedosto, jonka verkkosivusto tallentaa käyttäjän selaimeen. Sen avulla sivusto voi muistaa tietoja aiemmilta vierailuilta helpottaakseen navigointia.',
+      usedH: 'Tällä sivustolla käytetyt evästeet',
+      used1: 'Tämä sivusto ei käytä seuranta-, analytiikka- tai kolmannen osapuolen mainosevästeitä.',
+      used2: 'Käytetään vain yhtä omaa evästettä kielivalintasi tallentamiseen (espanja, englanti tai suomi). Tämä eväste on ehdottoman välttämätön toiminnallisuuden kannalta.',
+      used3: 'Jos tulevaisuudessa lisätään muita evästeitä, tätä käytäntöä päivitetään ja sinulta pyydetään suostumus ennen niiden aktivoimista.',
+    }
+  };
+
+  function openPanel() {
+    var lang = document.documentElement.lang || 'es';
+    var t = cs[lang] || cs.es;
+    body.innerHTML =
+      '<h2 style="font-family:\'Cormorant Garamond\',serif;font-weight:300;font-size:2rem;color:#0b2035;margin:0 0 28px;line-height:1.1;">' + t.title + '</h2>' +
+      '<h3 style="font-family:\'Cormorant Garamond\',serif;font-weight:400;font-size:1.1rem;color:#2a7f8a;margin:0 0 8px;">' + t.whatH + '</h3>' +
+      '<p style="color:#5f5a55;font-size:0.85rem;line-height:1.7;margin:0 0 22px;">' + t.what + '</p>' +
+      '<h3 style="font-family:\'Cormorant Garamond\',serif;font-weight:400;font-size:1.1rem;color:#2a7f8a;margin:0 0 8px;">' + t.usedH + '</h3>' +
+      '<p style="color:#5f5a55;font-size:0.85rem;line-height:1.7;margin:0 0 10px;">' + t.used1 + '</p>' +
+      '<p style="color:#5f5a55;font-size:0.85rem;line-height:1.7;margin:0 0 10px;">' + t.used2 + '</p>' +
+      '<p style="color:#5f5a55;font-size:0.85rem;line-height:1.7;margin:0;">' + t.used3 + '</p>';
+    panel.style.display = 'flex';
+    document.body.style.overflow = 'hidden';
+  }
+
+  function closePanel() {
+    panel.style.display = 'none';
+    document.body.style.overflow = '';
+  }
+
+  document.getElementById('smf-cookie-panel-close').addEventListener('click', closePanel);
+  panel.addEventListener('click', function (e) { if (e.target === panel) closePanel(); });
+  document.addEventListener('keydown', function (e) { if (e.key === 'Escape') closePanel(); });
+  document.addEventListener('click', function (e) {
+    if (e.target.classList.contains('cookie-config-link') || e.target.classList.contains('cookie-link')) {
+      e.preventDefault();
+      openPanel();
+    }
+  });
+})();
+</script>
+</body>
+</html>
