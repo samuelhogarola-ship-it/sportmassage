@@ -14,10 +14,10 @@
 
   <style>
     :root {
-      --navy: #0b2035;
-      --navy-mid: #132d4a;
-      --teal: #2a7f8a;
-      --teal-light: #3fa0ad;
+      --navy: #0F4C5C;
+      --navy-mid: #1B4965;
+      --teal: #006D77;
+      --teal-light: #008080;
       --gold: #c9a96e;
       --cream: #f7f4ef;
       --white: #ffffff;
@@ -39,7 +39,7 @@
       position: fixed; top: 0; left: 0; right: 0; z-index: 100;
       display: flex; align-items: center; justify-content: space-between;
       padding: 18px 48px;
-      background: rgba(11, 32, 53, 0.92);
+      background: rgba(15, 76, 92, 0.95);
       backdrop-filter: blur(12px);
       border-bottom: 1px solid rgba(201,169,110,0.2);
     }
@@ -224,8 +224,8 @@
       gap: 22px; margin-bottom: 34px;
     }
     .review-card {
-      background: rgba(255,255,255,0.72); border: 1px solid rgba(11,32,53,0.08);
-      padding: 30px 28px; backdrop-filter: blur(6px); box-shadow: 0 18px 40px rgba(11,32,53,0.05);
+      background: rgba(255,255,255,0.72); border: 1px solid rgba(15,76,92,0.08);
+      padding: 30px 28px; backdrop-filter: blur(6px); box-shadow: 0 18px 40px rgba(15,76,92,0.05);
     }
     .review-stars {
       color: var(--gold); font-size: 1rem; letter-spacing: 0.18em; margin-bottom: 16px;
@@ -245,7 +245,7 @@
       display: flex; gap: 18px; width: max-content; animation: marquee 26s linear infinite;
     }
     .reviews-pill {
-      white-space: nowrap; border: 1px solid rgba(11,32,53,0.08); background: rgba(255,255,255,0.78);
+      white-space: nowrap; border: 1px solid rgba(15,76,92,0.08); background: rgba(255,255,255,0.78);
       color: var(--navy); padding: 14px 18px; font-size: 0.8rem; letter-spacing: 0.06em;
       text-transform: uppercase; border-radius: 999px;
     }
@@ -357,14 +357,14 @@
       background: #fcfaf6;
       padding: 24px;
       border-radius: 4px;
-      box-shadow: 0 8px 32px rgba(11,32,53,0.14);
-      border: 1px solid rgba(11,32,53,0.08);
+      box-shadow: 0 8px 32px rgba(15,76,92,0.14);
+      border: 1px solid rgba(15,76,92,0.08);
       text-align: center;
     }
     .cookie-banner-card h2 {
       font-family: "Cormorant Garamond", serif;
       font-weight: 400; font-size: 1.25rem;
-      color: #0b2035; letter-spacing: 0;
+      color: #0F4C5C; letter-spacing: 0;
       margin: 0 0 10px 0;
     }
     .cookie-banner-card p {
@@ -381,8 +381,8 @@
     }
     .btn-cookie-primary  { background: #2a7f8a; color: #fff; }
     .btn-cookie-primary:hover  { background: #3fa0ad; }
-    .btn-cookie-secondary { background: transparent; color: #0b2035; border: 1px solid rgba(11,32,53,0.2); }
-    .btn-cookie-secondary:hover { background: rgba(11,32,53,0.06); }
+    .btn-cookie-secondary { background: transparent; color: #0F4C5C; border: 1px solid rgba(15,76,92,0.2); }
+    .btn-cookie-secondary:hover { background: rgba(15,76,92,0.06); }
     .cookie-banner-footer { margin-top: 8px; }
     .cookie-config-link {
       font-size: 0.7rem; color: #c9a96e; text-decoration: underline;
@@ -836,8 +836,8 @@ document.querySelectorAll('.reveal').forEach(el => observer.observe(el));
 })();
 </script>
 
-<div id="smf-cookie-panel" role="dialog" aria-modal="true" style="display:none;position:fixed;inset:0;z-index:1000001;background:rgba(11,32,53,0.6);align-items:center;justify-content:center;padding:20px;">
-  <div id="smf-cookie-panel-box" style="background:#fcfaf6;max-width:600px;width:100%;max-height:82vh;overflow-y:auto;padding:44px 40px;border-radius:4px;position:relative;box-shadow:0 24px 64px rgba(11,32,53,0.22);">
+<div id="smf-cookie-panel" role="dialog" aria-modal="true" style="display:none;position:fixed;inset:0;z-index:1000001;background:rgba(15,76,92,0.6);align-items:center;justify-content:center;padding:20px;">
+  <div id="smf-cookie-panel-box" style="background:#fcfaf6;max-width:600px;width:100%;max-height:82vh;overflow-y:auto;padding:44px 40px;border-radius:4px;position:relative;box-shadow:0 24px 64px rgba(15,76,92,0.22);">
     <button id="smf-cookie-panel-close" aria-label="Cerrar" style="position:absolute;top:16px;right:20px;background:none;border:none;cursor:pointer;font-size:1.4rem;color:#5f5a55;line-height:1;font-family:inherit;padding:4px;">×</button>
     <div id="smf-cookie-panel-body"></div>
   </div>
