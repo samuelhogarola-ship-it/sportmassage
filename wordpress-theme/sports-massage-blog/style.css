@@ -1,0 +1,388 @@
+/*
+Theme Name: Sports Massage Blog
+Theme URI: https://github.com/sofiaSorvali/Sports-massage
+Author: Codex
+Description: Tema de WordPress para blog basado en la identidad visual de Sports Massage in Fuengirola.
+Version: 1.0.0
+Requires at least: 6.0
+Tested up to: 6.5
+Requires PHP: 7.4
+Text Domain: sports-massage-blog
+*/
+
+:root {
+  --navy: #0b2035;
+  --navy-mid: #132d4a;
+  --teal: #2a7f8a;
+  --teal-light: #3fa0ad;
+  --gold: #c9a96e;
+  --cream: #f7f4ef;
+  --white: #ffffff;
+  --text: #1a1a1a;
+  --text-muted: #5a5a5a;
+  --border: rgba(11, 32, 53, 0.08);
+  --shadow: 0 20px 50px rgba(11, 32, 53, 0.08);
+  --content-width: 1180px;
+}
+
+*,
+*::before,
+*::after { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  font-family: "Jost", sans-serif;
+  color: var(--text);
+  background: var(--cream);
+  line-height: 1.7;
+}
+
+img { max-width: 100%; height: auto; display: block; }
+a { color: var(--teal); text-decoration: none; }
+a:hover { color: var(--teal-light); }
+
+.site-header {
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  background: rgba(11, 32, 53, 0.94);
+  backdrop-filter: blur(12px);
+  border-bottom: 1px solid rgba(201, 169, 110, 0.18);
+}
+
+.site-bar,
+.hero-inner,
+.section-inner,
+.content-grid,
+.site-footer-inner {
+  width: min(var(--content-width), calc(100% - 40px));
+  margin: 0 auto;
+}
+
+.site-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  padding: 18px 0;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  color: var(--white);
+}
+
+.brand-mark {
+  width: 52px;
+  height: 52px;
+  border-radius: 10px;
+  object-fit: cover;
+}
+
+.brand-text,
+.hero-title,
+.section-title,
+.entry-title,
+.widget-title,
+.footer-title {
+  font-family: "Cormorant Garamond", serif;
+}
+
+.brand-text {
+  font-size: 1.12rem;
+  line-height: 1.2;
+  color: var(--white);
+}
+
+.brand-text span {
+  display: block;
+  margin-top: 4px;
+  font-family: "Jost", sans-serif;
+  font-size: 0.72rem;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--gold);
+}
+
+.main-navigation ul {
+  display: flex;
+  align-items: center;
+  gap: 26px;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.main-navigation a {
+  color: rgba(255, 255, 255, 0.78);
+  font-size: 0.78rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.main-navigation a:hover,
+.main-navigation .current-menu-item > a { color: var(--gold); }
+
+.hero {
+  position: relative;
+  overflow: hidden;
+  background: var(--navy);
+  color: var(--white);
+}
+
+.hero::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(ellipse 60% 50% at 20% 80%, rgba(42, 127, 138, 0.24) 0%, transparent 70%),
+    radial-gradient(ellipse 50% 60% at 80% 20%, rgba(201, 169, 110, 0.12) 0%, transparent 70%);
+}
+
+.hero-inner {
+  position: relative;
+  padding: 110px 0 90px;
+  text-align: center;
+}
+
+.eyebrow,
+.section-eyebrow {
+  font-size: 0.72rem;
+  letter-spacing: 0.32em;
+  text-transform: uppercase;
+  color: var(--gold);
+}
+
+.hero-title,
+.section-title,
+.entry-title {
+  line-height: 1.08;
+  font-weight: 300;
+}
+
+.hero-title {
+  margin: 22px auto 18px;
+  max-width: 840px;
+  font-size: clamp(3rem, 8vw, 6.2rem);
+}
+
+.hero-summary,
+.section-copy,
+.entry-summary,
+.entry-content,
+.widget {
+  color: var(--text-muted);
+}
+
+.hero-summary {
+  max-width: 660px;
+  margin: 0 auto 34px;
+  color: rgba(255, 255, 255, 0.72);
+  font-size: 1rem;
+}
+
+.hero-actions {
+  display: flex;
+  justify-content: center;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.button-primary,
+.button-secondary,
+input[type="submit"] {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 14px 28px;
+  font-size: 0.78rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  border: 0;
+  transition: transform 0.2s, background 0.2s, color 0.2s;
+}
+
+.button-primary,
+input[type="submit"] {
+  background: var(--teal);
+  color: var(--white);
+}
+
+.button-secondary {
+  background: transparent;
+  color: var(--white);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+}
+
+.button-primary:hover,
+.button-secondary:hover,
+input[type="submit"]:hover { transform: translateY(-1px); }
+.button-primary:hover,
+input[type="submit"]:hover { background: var(--teal-light); }
+.button-secondary:hover { background: var(--gold); color: var(--navy); border-color: var(--gold); }
+
+.section { padding: 82px 0; }
+.section-heading { text-align: center; max-width: 740px; margin: 0 auto 44px; }
+.section-title { margin: 14px 0 16px; font-size: clamp(2.1rem, 4vw, 3.6rem); }
+
+.post-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 26px;
+}
+
+.post-card,
+.entry-card,
+.archive-header,
+.content-sidebar,
+.widget-panel {
+  background: rgba(255, 255, 255, 0.8);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow);
+}
+
+.post-card-body,
+.entry-card,
+.archive-header,
+.content-sidebar { padding: 28px; }
+
+.post-card .entry-title { margin: 0 0 12px; font-size: 2rem; }
+
+.post-meta {
+  margin-bottom: 14px;
+  color: var(--gold);
+  font-size: 0.74rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.content-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(280px, 0.9fr);
+  gap: 36px;
+  padding: 70px 0 90px;
+}
+
+.entry-card + .entry-card,
+.widget-panel + .widget-panel { margin-top: 24px; }
+
+.entry-title {
+  margin: 0 0 14px;
+  font-size: clamp(2.4rem, 4vw, 4rem);
+  color: var(--navy);
+}
+
+.entry-content h2,
+.entry-content h3,
+.entry-content h4 {
+  font-family: "Cormorant Garamond", serif;
+  font-weight: 400;
+  color: var(--navy);
+}
+
+.widget-panel { padding: 22px; }
+.widget-title { margin: 0 0 14px; font-size: 1.8rem; color: var(--navy); }
+
+.footer-cta {
+  background: var(--teal);
+  color: var(--white);
+  text-align: center;
+}
+
+.footer-cta .section-title,
+.footer-cta .section-copy { color: var(--white); }
+.footer-cta .section-copy { max-width: 620px; margin: 0 auto 28px; opacity: 0.82; }
+
+.site-footer {
+  background: var(--navy);
+  color: rgba(255, 255, 255, 0.68);
+  border-top: 1px solid rgba(201, 169, 110, 0.16);
+}
+
+.site-footer-inner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  flex-wrap: wrap;
+  padding: 34px 0;
+}
+
+.footer-title { font-size: 1.3rem; }
+.footer-copy { font-size: 0.74rem; letter-spacing: 0.12em; text-transform: uppercase; }
+
+.footer-contact {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 0.85rem;
+}
+
+.footer-contact a {
+  color: var(--gold);
+}
+
+.floating-whatsapp {
+  position: fixed;
+  right: 20px;
+  bottom: 20px;
+  width: 60px;
+  height: 60px;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: #25d366;
+  color: #fff;
+  box-shadow: 0 16px 30px rgba(11, 32, 53, 0.22);
+  z-index: 60;
+}
+
+.floating-whatsapp svg {
+  width: 28px;
+  height: 28px;
+  fill: currentColor;
+}
+
+.entry-card-intro p {
+  margin: 0;
+  color: var(--text-muted);
+}
+
+.screen-reader-text {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+@media (max-width: 960px) {
+  .site-bar,
+  .site-footer-inner { flex-direction: column; text-align: center; }
+  .main-navigation ul,
+  .hero-actions { justify-content: center; flex-wrap: wrap; }
+  .post-grid,
+  .content-grid { grid-template-columns: 1fr; }
+}
+
+@media (max-width: 640px) {
+  .site-bar,
+  .hero-inner,
+  .section-inner,
+  .content-grid,
+  .site-footer-inner { width: min(var(--content-width), calc(100% - 28px)); }
+  .hero-inner { padding: 86px 0 74px; }
+  .post-card-body,
+  .entry-card,
+  .archive-header,
+  .content-sidebar,
+  .widget-panel { padding: 22px; }
+}
