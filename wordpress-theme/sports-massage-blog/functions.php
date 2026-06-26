@@ -64,7 +64,7 @@ add_action('widgets_init', 'sports_massage_blog_widgets');
 function sports_massage_blog_menu_fallback() {
     echo '<ul>';
     echo '<li><a href="' . esc_url(sports_massage_blog_main_url('/')) . '">' . esc_html__('Home', 'sports-massage-blog') . '</a></li>';
-    echo '<li><a href="' . esc_url(home_url('/')) . '">' . esc_html__('Blog', 'sports-massage-blog') . '</a></li>';
+    echo '<li><a href="' . esc_url(sports_massage_blog_main_url('/blog')) . '">' . esc_html__('Blog', 'sports-massage-blog') . '</a></li>';
     echo '<li><a href="' . esc_url(sports_massage_blog_main_url('/#servicios')) . '">' . esc_html__('Services', 'sports-massage-blog') . '</a></li>';
     echo '<li><a href="' . esc_url(sports_massage_blog_main_url('/#sobre-mi')) . '">' . esc_html__('About', 'sports-massage-blog') . '</a></li>';
     echo '<li><a href="' . esc_url(sports_massage_blog_main_url('/#contacto')) . '">' . esc_html__('Contact', 'sports-massage-blog') . '</a></li>';
