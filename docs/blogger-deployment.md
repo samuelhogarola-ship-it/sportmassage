@@ -32,8 +32,10 @@ Studio launch URLs must put the one-time code in the fragment (`/admin/blogger/#
 
 ```sh
 npm test
-npm run build:blog
+npm run build:site
 npm run start:blogger
 ```
+
+Run `npm run build:site` once before starting or reloading Nginx. It uses the same isolated builder, versioned release directory, transaction journal, and atomic `current` pointer as authenticated publishing. `npm run build:blog` is only a checkout preview of `/blog/`; it does not create the public release tree served by Nginx.
 
 Use the examples in `deploy/` as templates. Replace paths and the service account for the target host; do not commit the production environment file.

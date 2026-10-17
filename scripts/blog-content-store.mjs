@@ -116,6 +116,8 @@ export function recoverBlogTransaction({ root, contentRoot, outputRoot, transact
 export function createBlogContentStore({
   root, contentRoot, mediaRoot, outputRoot, transactionRoot, build,
   maxMediaBytes = 10 * 1024 * 1024, mutationHook = async () => {},
+  removeRelease = (directory) => fs.rmSync(directory, { recursive: true, force: true }),
+  onMaintenanceError = ({ phase, error }) => console.error(`[blogger] post-commit ${phase} failed`, error),
 }) {
   const projectRoot = path.resolve(root);
   const sources = assertInside(projectRoot, contentRoot, "Content root");
@@ -147,8 +149,11 @@ export function createBlogContentStore({
   function cleanupOldReleases() {
     const active = currentTarget(output);
     for (const entry of fs.readdirSync(path.join(output, "releases"), { withFileTypes: true })) {
-      if (entry.isDirectory() && `releases/${entry.name}` !== active) fs.rmSync(path.join(output, "releases", entry.name), { recursive: true, force: true });
+      if (entry.isDirectory() && `releases/${entry.name}` !== active) removeRelease(path.join(output, "releases", entry.name));
     }
+  }
+  function reportMaintenanceError(phase, error) {
+    try { onMaintenanceError({ phase, error }); } catch { /* maintenance reporting cannot change commit semantics */ }
   }
   async function transact(operation) {
     fs.rmSync(transaction, { recursive: true, force: true });
@@ -159,17 +164,14 @@ export function createBlogContentStore({
     const releaseRoot = path.join(output, releaseTarget);
     const previousTarget = currentTarget(output);
     journal({ phase: "prepared", releaseId, previousTarget });
+    let result;
     try {
-      const result = await operation();
+      result = await operation();
       journal({ phase: "building", releaseId, previousTarget });
       await build({ releaseRoot, releaseId });
       if (!fs.existsSync(releaseRoot)) throw new Error("Build did not create its release directory");
       journal({ phase: "release_ready", releaseId, previousTarget });
       activateRelease(output, releaseTarget);
-      journal({ phase: "activated", releaseId, previousTarget });
-      fs.rmSync(transaction, { recursive: true, force: true });
-      cleanupOldReleases();
-      return result;
     } catch (error) {
       restoreContent(sources, path.join(transaction, "content"));
       fs.rmSync(releaseRoot, { recursive: true, force: true });
@@ -177,6 +179,10 @@ export function createBlogContentStore({
       fs.rmSync(transaction, { recursive: true, force: true });
       throw error;
     }
+    try { journal({ phase: "activated", releaseId, previousTarget }); } catch (error) { reportMaintenanceError("journal_finalize", error); }
+    try { fs.rmSync(transaction, { recursive: true, force: true }); } catch (error) { reportMaintenanceError("transaction_cleanup", error); }
+    try { cleanupOldReleases(); } catch (error) { reportMaintenanceError("release_cleanup", error); }
+    return result;
   }
   async function statusChange(slug, status) {
     return mutate(status === "published" ? "publish" : "unpublish", async () => {
