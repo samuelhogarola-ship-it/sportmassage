@@ -1,0 +1,19 @@
+[Unit]
+Description=Sport Massage static Blogger service
+After=network.target
+
+[Service]
+Type=simple
+User=sportmassage
+WorkingDirectory=/srv/sportmassage/current
+EnvironmentFile=/etc/sportmassage/blogger.env
+ExecStart=/usr/bin/node scripts/post-manager-server.mjs
+Restart=on-failure
+RestartSec=5
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ReadWritePaths=/srv/sportmassage/current/content/blog /srv/sportmassage/current/blog /srv/sportmassage/current/.blogger-state
+
+[Install]
+WantedBy=multi-user.target

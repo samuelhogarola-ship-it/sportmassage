@@ -7,6 +7,17 @@
     <link rel="stylesheet" href="styles.css" />
   </head>
   <body>
+    <section id="bloggerLogin" class="login-shell" aria-labelledby="loginTitle">
+      <form id="bloggerLoginForm" class="login-card">
+        <p class="login-eyebrow">Sport Massage Fuengirola</p>
+        <h1 id="loginTitle">Acceso a Blogger</h1>
+        <p>Este acceso permite gestionar únicamente las publicaciones del blog.</p>
+        <label>Usuario<input id="bloggerUsername" name="username" autocomplete="username" required /></label>
+        <label>Contraseña<input id="bloggerPassword" name="password" type="password" autocomplete="current-password" required /></label>
+        <button type="submit">Entrar</button>
+        <p id="bloggerLoginStatus" class="status-text" role="status"></p>
+      </form>
+    </section>
     <main class="app-shell">
       <aside class="sidebar" aria-label="Posts">
         <div class="brand">
@@ -35,6 +46,9 @@
             <h1 id="currentTitle">Gestor de contenidos</h1>
           </div>
           <div class="actions">
+            <button id="bloggerLogout" class="secondary" type="button">
+              Cerrar sesión
+            </button>
             <a
               id="viewPublished"
               class="button-link secondary"
@@ -254,7 +268,7 @@
         </section>
       </section>
     </main>
-    <script id="bloggerConfig" type="application/json">{"siteName":"Sport Massage Fuengirola","defaultAuthor":"Sport Massage Fuengirola","defaultLanguage":"es","apiBase":"/api/posts","buildEndpoint":"/api/build","publicPostBase":"/blog/","authModule":"/assets/js/blogger-auth.js"}</script>
+    <script id="bloggerConfig" type="application/json">{"siteName":"Sport Massage Fuengirola","defaultAuthor":"Sport Massage Fuengirola","defaultLanguage":"es","apiBase":"/api/posts","buildEndpoint":"/api/build","publicPostBase":"/blog/","authModule":"./blogger-auth.js"}</script>
     <script type="module" src="./app.js"></script>
   </body>
 </html>

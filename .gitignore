@@ -1,0 +1,5 @@
+.blogger-state/
+.env
+blog.staging-*/
+blog.previous-*/
+node_modules/

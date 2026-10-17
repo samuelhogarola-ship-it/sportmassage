@@ -54,3 +54,5 @@ Revisa este proyecto, haz los cambios pedidos, comprueba los textos en todos los
 - La versión actual de la web ya lleva ese contenido inline, así que `vendor/` no es obligatorio para que la home y `legal.html` funcionen.
 - Aun así, conviene revisar en cada redeploy que no queden referencias antiguas a `vendor/...` ni archivos sueltos mezclados en `public_html`.
 - El blog HTML vive dentro de `blog/` y se publica junto con la web principal en `public_html`. Blogger Studio usa `/blog/` como base pública y genera cada artículo en `blog/<slug>/index.html`.
+- El servicio local de Blogger, sus variables y las comprobaciones de despliegue están documentados en `docs/blogger-deployment.md`.
+- `content/blog/` es la fuente persistente; `npm run build:blog` reconstruye la salida pública determinista.

@@ -1,0 +1,14 @@
+{
+  "name": "sportmassage-static-blogger",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node --test tests/*.test.mjs",
+    "build:blog": "node scripts/generate-blog.mjs",
+    "start:blogger": "node scripts/post-manager-server.mjs"
+  },
+  "engines": {
+    "node": ">=22"
+  }
+}

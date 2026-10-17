@@ -1,0 +1,477 @@
+import fs from "node:fs";
+import http from "node:http";
+import { isIP } from "node:net";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+
+import {
+  createAuditLogger,
+  createRateLimiter,
+  createSessionStore,
+  isSupportedPasswordHash,
+  validateRuntimeSecrets,
+  verifyPassword,
+} from "./blogger-launch-session.mjs";
+import { createBlogContentStore } from "./blog-content-store.mjs";
+import { generateBlog } from "./generate-blog.mjs";
+
+export const HANDOFF_PROTOCOL = "wf-blogger-handoff/v1";
+export const BLOGGER_AUDIENCE = "sportmassagefuengirola";
+const COOKIE_NAME = "sportmassage_blogger_session";
+const CODE_PATTERN = /^[A-Za-z0-9_-]{43}$/;
+const MAX_LOGIN_BODY = 8 * 1024;
+const MAX_HANDOFF_BODY = 4 * 1024;
+const MAX_POST_BODY = 512 * 1024;
+const MAX_MEDIA_BYTES = 10 * 1024 * 1024;
+const MAX_MEDIA_BODY = Math.ceil((MAX_MEDIA_BYTES * 4) / 3) + 8 * 1024;
+
+class RequestError extends Error {
+  constructor(status, code) {
+    super(code);
+    this.status = status;
+    this.code = code;
+  }
+}
+
+function required(env, name) {
+  const value = env[name]?.trim();
+  if (!value) throw new Error(`Missing required Blogger configuration: ${name}`);
+  return value;
+}
+
+function exactOrigin(value, name, protocols = ["https:"]) {
+  let parsed;
+  try {
+    parsed = new URL(value);
+  } catch {
+    throw new Error(`${name} must be an exact origin`);
+  }
+  if (
+    !protocols.includes(parsed.protocol) ||
+    parsed.origin !== value ||
+    parsed.username ||
+    parsed.password ||
+    parsed.pathname !== "/" ||
+    parsed.search ||
+    parsed.hash
+  ) {
+    throw new Error(`${name} must be an exact origin`);
+  }
+  return value;
+}
+
+function confined(root, candidate, label) {
+  const base = path.resolve(root);
+  const resolved = path.resolve(candidate);
+  if (resolved !== base && !resolved.startsWith(`${base}${path.sep}`)) {
+    throw new Error(`${label} must remain inside the project root`);
+  }
+  return resolved;
+}
+
+function configuredPath(root, value, fallback, label) {
+  const candidate = value ?? fallback;
+  return confined(root, path.isAbsolute(candidate) ? candidate : path.join(root, candidate), label);
+}
+
+function positiveInteger(value, fallback, maximum, label) {
+  if (value === undefined || value === "") return fallback;
+  if (!/^[1-9]\d*$/.test(value)) throw new Error(`${label} is invalid`);
+  const parsed = Number(value);
+  if (!Number.isSafeInteger(parsed) || parsed > maximum) throw new Error(`${label} is invalid`);
+  return parsed;
+}
+
+function readConfiguration(projectRoot, env) {
+  const root = path.resolve(projectRoot);
+  const secretConfiguration = {
+    BLOGGER_SESSION_SECRET: required(env, "BLOGGER_SESSION_SECRET"),
+    BLOGGER_HANDOFF_SECRET: required(env, "BLOGGER_HANDOFF_SECRET"),
+  };
+  const { sessionSecret, handoffSecret } = validateRuntimeSecrets(secretConfiguration);
+  const publicOrigin = exactOrigin(required(env, "BLOGGER_PUBLIC_ORIGIN"), "BLOGGER_PUBLIC_ORIGIN");
+  const studioOrigin = exactOrigin(required(env, "BLOGGER_STUDIO_ORIGIN"), "BLOGGER_STUDIO_ORIGIN");
+  const exchangeUrl = new URL(required(env, "BLOGGER_STUDIO_EXCHANGE_URL"));
+  if (exchangeUrl.protocol !== "https:" || exchangeUrl.origin !== studioOrigin || exchangeUrl.pathname !== "/api/tool-launch/exchange") {
+    throw new Error("BLOGGER_STUDIO_EXCHANGE_URL is invalid");
+  }
+  const username = required(env, "BLOGGER_DIRECT_USERNAME");
+  if (!/^[A-Za-z0-9][A-Za-z0-9._@+-]{2,127}$/.test(username)) {
+    throw new Error("BLOGGER_DIRECT_USERNAME is invalid");
+  }
+  const passwordHash = required(env, "BLOGGER_DIRECT_PASSWORD_HASH");
+  if (!isSupportedPasswordHash(passwordHash)) throw new Error("BLOGGER_DIRECT_PASSWORD_HASH is invalid");
+  const mutationOrigin = env.NODE_ENV === "test" && env.BLOGGER_TEST_ORIGIN
+    ? exactOrigin(env.BLOGGER_TEST_ORIGIN, "BLOGGER_TEST_ORIGIN", ["http:"])
+    : publicOrigin;
+  return {
+    root,
+    publicOrigin,
+    studioOrigin,
+    exchangeUrl: exchangeUrl.href,
+    mutationOrigin,
+    sessionSecret,
+    handoffSecret,
+    username,
+    passwordHash,
+    stateDirectory: configuredPath(root, env.BLOGGER_STATE_DIR, ".blogger-state", "State directory"),
+    contentRoot: configuredPath(root, env.BLOGGER_CONTENT_ROOT, "content/blog", "Content root"),
+    mediaRoot: configuredPath(root, env.BLOGGER_MEDIA_ROOT, "content/blog/media", "Media root"),
+    outputRoot: configuredPath(root, env.BLOGGER_OUTPUT_ROOT, "blog", "Output root"),
+    sessionTtlMs: positiveInteger(env.BLOGGER_SESSION_TTL_SECONDS, 8 * 60 * 60, 24 * 60 * 60, "Session TTL") * 1_000,
+    loginAttempts: positiveInteger(env.BLOGGER_LOGIN_MAX_ATTEMPTS, 5, 20, "Login attempts"),
+    buildTimeoutMs: positiveInteger(env.BLOGGER_BUILD_TIMEOUT_MS, 120_000, 15 * 60 * 1_000, "Build timeout"),
+  };
+}
+
+const SECURITY_HEADERS = Object.freeze({
+  "Cache-Control": "private, no-store, max-age=0, must-revalidate",
+  Pragma: "no-cache",
+  "Referrer-Policy": "no-referrer",
+  "X-Content-Type-Options": "nosniff",
+  "X-Frame-Options": "DENY",
+  "Permissions-Policy": "camera=(), geolocation=(), microphone=(), payment=(), usb=()",
+});
+
+function setHeaders(response, contentType) {
+  for (const [name, value] of Object.entries(SECURITY_HEADERS)) response.setHeader(name, value);
+  response.setHeader("Content-Type", contentType);
+  response.setHeader("Content-Security-Policy", "default-src 'none'; base-uri 'none'; frame-ancestors 'none'; object-src 'none'");
+}
+
+function json(response, status, body, extraHeaders = {}) {
+  setHeaders(response, "application/json; charset=utf-8");
+  for (const [name, value] of Object.entries(extraHeaders)) response.setHeader(name, value);
+  response.statusCode = status;
+  response.end(JSON.stringify(body));
+}
+
+function empty(response, status, extraHeaders = {}) {
+  setHeaders(response, "text/plain; charset=utf-8");
+  for (const [name, value] of Object.entries(extraHeaders)) response.setHeader(name, value);
+  response.statusCode = status;
+  response.end();
+}
+
+async function readJson(request, maximum) {
+  if (!request.headers["content-type"]?.toLowerCase().startsWith("application/json")) {
+    throw new RequestError(415, "unsupported_media_type");
+  }
+  const declared = request.headers["content-length"];
+  if (declared && (!/^\d+$/.test(declared) || Number(declared) > maximum)) {
+    request.resume();
+    throw new RequestError(413, "payload_too_large");
+  }
+  const chunks = [];
+  let length = 0;
+  for await (const chunk of request) {
+    length += chunk.length;
+    if (length > maximum) {
+      request.resume();
+      throw new RequestError(413, "payload_too_large");
+    }
+    chunks.push(chunk);
+  }
+  try {
+    return JSON.parse(new TextDecoder("utf8", { fatal: true }).decode(Buffer.concat(chunks)));
+  } catch {
+    throw new RequestError(400, "invalid_request");
+  }
+}
+
+function parseCookies(request) {
+  const values = {};
+  for (const part of String(request.headers.cookie ?? "").split(";")) {
+    const index = part.indexOf("=");
+    if (index > 0) values[part.slice(0, index).trim()] = part.slice(index + 1).trim();
+  }
+  return values;
+}
+
+function sessionCookie(token, maxAgeSeconds) {
+  return `${COOKIE_NAME}=${token}; Path=/; HttpOnly; Secure; SameSite=Strict; Max-Age=${maxAgeSeconds}`;
+}
+
+function requireOrigin(request, expected) {
+  if (request.headers.origin !== expected) throw new RequestError(403, "forbidden");
+}
+
+function clientKey(request) {
+  const peer = request.socket.remoteAddress ?? "unknown";
+  const forwarded = request.headers["x-real-ip"];
+  const loopback = ["127.0.0.1", "::1", "::ffff:127.0.0.1"].includes(peer);
+  if (loopback && typeof forwarded === "string" && forwarded.length <= 45 && isIP(forwarded)) {
+    return forwarded;
+  }
+  return peer;
+}
+
+function decodeDataUrl(value) {
+  if (typeof value !== "string") throw new RequestError(400, "invalid_image");
+  const match = value.match(/^data:image\/(?:avif|jpeg|png|webp);base64,([A-Za-z0-9+/]*={0,2})$/i);
+  if (!match) throw new RequestError(400, "invalid_image");
+  const bytes = Buffer.from(match[1], "base64");
+  if (!bytes.length || bytes.length > MAX_MEDIA_BYTES) throw new RequestError(413, "image_too_large");
+  return bytes;
+}
+
+function publicCapabilities() {
+  return {
+    protocol: HANDOFF_PROTOCOL,
+    audience: BLOGGER_AUDIENCE,
+    capabilities: ["posts", "media", "publish", "unpublish"],
+  };
+}
+
+export function createPostManagerServer({
+  projectRoot,
+  env = process.env,
+  fetchImpl = fetch,
+  build,
+  maxSessions = 256,
+  maxRateLimitEntries = 1_024,
+} = {}) {
+  const config = readConfiguration(projectRoot, env);
+  const sessions = createSessionStore({
+    maxEntries: maxSessions,
+    ttlMs: config.sessionTtlMs,
+    secret: config.sessionSecret,
+  });
+  const limiter = createRateLimiter({
+    maxEntries: maxRateLimitEntries,
+    limit: config.loginAttempts,
+  });
+  const audit = createAuditLogger(config.stateDirectory);
+  const buildBlog = build ?? (() => generateBlog({
+    root: config.root,
+    contentRoot: config.contentRoot,
+    mediaRoot: config.mediaRoot,
+    outputRoot: config.outputRoot,
+    transactionRoot: path.join(config.stateDirectory, "transaction"),
+  }));
+  const store = createBlogContentStore({
+    root: config.root,
+    contentRoot: config.contentRoot,
+    mediaRoot: config.mediaRoot,
+    outputRoot: config.outputRoot,
+    build: buildBlog,
+    buildTimeoutMs: config.buildTimeoutMs,
+  });
+
+  async function runBoundedBuild() {
+    const controller = new AbortController();
+    let timer;
+    try {
+      return await Promise.race([
+        Promise.resolve(buildBlog({ signal: controller.signal })),
+        new Promise((_, reject) => {
+          timer = setTimeout(() => {
+            controller.abort();
+            reject(new Error(`Build timed out after ${config.buildTimeoutMs}ms`));
+          }, config.buildTimeoutMs);
+          timer.unref?.();
+        }),
+      ]);
+    } finally {
+      clearTimeout(timer);
+    }
+  }
+
+  function currentSession(request) {
+    return sessions.get(parseCookies(request)[COOKIE_NAME]);
+  }
+
+  function requireSession(request) {
+    const session = currentSession(request);
+    if (!session || !session.scope?.includes("blogger")) throw new RequestError(401, "authentication_required");
+    return session;
+  }
+
+  function establish(request, response, data) {
+    const prior = parseCookies(request)[COOKIE_NAME];
+    if (prior) sessions.destroy(prior);
+    const token = sessions.create(data);
+    json(response, 200, { authenticated: true }, { "Set-Cookie": sessionCookie(token, Math.floor(config.sessionTtlMs / 1_000)) });
+  }
+
+  return http.createServer(async (request, response) => {
+    try {
+      const url = new URL(request.url, config.publicOrigin);
+      const method = request.method ?? "GET";
+
+      if (method === "GET" && ["/api/blogger/health", "/.well-known/wf-blogger.json"].includes(url.pathname)) {
+        json(response, 200, publicCapabilities());
+        return;
+      }
+
+      if (method === "POST" && url.pathname === "/admin/blogger/login") {
+        requireOrigin(request, config.mutationOrigin);
+        const attempt = limiter.consume(clientKey(request));
+        if (!attempt.allowed) {
+          json(response, 429, { error: "authentication_failed" }, { "Retry-After": String(attempt.retryAfterSeconds) });
+          return;
+        }
+        const body = await readJson(request, MAX_LOGIN_BODY);
+        const valid = body.username === config.username && await verifyPassword(body.password, config.passwordHash);
+        if (!valid) {
+          json(response, 401, { error: "authentication_failed" });
+          return;
+        }
+        audit({ event: "session_created", origin: "direct" });
+        establish(request, response, {
+          source: "direct",
+          scope: ["blogger"],
+          subject: { role: "blogger_editor", username: config.username },
+        });
+        return;
+      }
+
+      if (method === "POST" && url.pathname === "/admin/blogger/launch") {
+        requireOrigin(request, config.mutationOrigin);
+        const body = await readJson(request, MAX_HANDOFF_BODY);
+        if (!CODE_PATTERN.test(body.code ?? "")) throw new RequestError(400, "invalid_launch_code");
+        const exchange = await fetchImpl(config.exchangeUrl, {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${config.handoffSecret}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ code: body.code, audience: BLOGGER_AUDIENCE }),
+          signal: AbortSignal.timeout(8_000),
+        });
+        if (!exchange.ok) throw new RequestError(401, "invalid_or_expired_ticket");
+        const ticket = await exchange.json();
+        if (
+          ticket.protocol !== HANDOFF_PROTOCOL ||
+          ticket.audience !== BLOGGER_AUDIENCE ||
+          !ticket.subject ||
+          typeof ticket.subject !== "object" ||
+          Array.isArray(ticket.subject)
+        ) {
+          throw new RequestError(401, "invalid_or_expired_ticket");
+        }
+        audit({ event: "session_created", origin: "studio" });
+        establish(request, response, { source: "studio", scope: ["blogger"], subject: ticket.subject });
+        return;
+      }
+
+      if (method === "GET" && url.pathname === "/api/admin/session") {
+        const session = requireSession(request);
+        json(response, 200, {
+          authenticated: true,
+          source: session.source,
+          scope: session.scope,
+          subject: session.subject,
+        });
+        return;
+      }
+
+      if (method === "POST" && url.pathname === "/api/admin/logout") {
+        requireOrigin(request, config.mutationOrigin);
+        sessions.destroy(parseCookies(request)[COOKIE_NAME]);
+        empty(response, 204, { "Set-Cookie": sessionCookie("", 0) });
+        return;
+      }
+
+      const postMatch = url.pathname.match(/^\/api\/posts\/([a-z0-9]+(?:-[a-z0-9]+)*)(?:\/(publish|unpublish|images))?$/);
+      const imageMatch = url.pathname.match(/^\/api\/posts\/([a-z0-9]+(?:-[a-z0-9]+)*)\/images\/([A-Za-z0-9][A-Za-z0-9._-]{0,99}\.(?:avif|jpe?g|png|webp))$/i);
+      if (url.pathname === "/api/posts" && method === "GET") {
+        requireSession(request);
+        json(response, 200, { posts: await store.list() });
+        return;
+      }
+      if (url.pathname === "/api/posts" && method === "POST") {
+        requireSession(request);
+        requireOrigin(request, config.mutationOrigin);
+        const body = await readJson(request, MAX_POST_BODY);
+        const desired = body.status;
+        const created = await store.create({ ...body, status: "draft" });
+        json(response, 201, desired === "published" ? await store.publish(created.slug) : created);
+        return;
+      }
+      if (postMatch && !postMatch[2] && method === "GET") {
+        requireSession(request);
+        json(response, 200, await store.get(postMatch[1]));
+        return;
+      }
+      if (postMatch && !postMatch[2] && method === "PUT") {
+        requireSession(request);
+        requireOrigin(request, config.mutationOrigin);
+        const body = await readJson(request, MAX_POST_BODY);
+        const desired = body.status;
+        const updated = desired === "published"
+          ? await store.updatePublished(postMatch[1], body)
+          : await store.update(postMatch[1], { ...body, status: "draft" });
+        json(response, 200, updated);
+        return;
+      }
+      if (postMatch && !postMatch[2] && method === "DELETE") {
+        requireSession(request);
+        requireOrigin(request, config.mutationOrigin);
+        await store.delete(postMatch[1]);
+        empty(response, 204);
+        return;
+      }
+      if (postMatch?.[2] === "publish" && method === "POST") {
+        requireSession(request);
+        requireOrigin(request, config.mutationOrigin);
+        json(response, 200, await store.publish(postMatch[1]));
+        return;
+      }
+      if (postMatch?.[2] === "unpublish" && method === "POST") {
+        requireSession(request);
+        requireOrigin(request, config.mutationOrigin);
+        json(response, 200, await store.unpublish(postMatch[1]));
+        return;
+      }
+      if (postMatch?.[2] === "images" && method === "POST") {
+        requireSession(request);
+        requireOrigin(request, config.mutationOrigin);
+        const body = await readJson(request, MAX_MEDIA_BODY);
+        const image = await store.saveImage(postMatch[1], {
+          filename: body.fileName,
+          bytes: decodeDataUrl(body.data),
+        });
+        json(response, 201, image);
+        return;
+      }
+      if (imageMatch && method === "PUT") {
+        requireSession(request);
+        requireOrigin(request, config.mutationOrigin);
+        const body = await readJson(request, MAX_HANDOFF_BODY);
+        json(response, 200, await store.updateImage(imageMatch[1], imageMatch[2], body));
+        return;
+      }
+      if (imageMatch && method === "DELETE") {
+        requireSession(request);
+        requireOrigin(request, config.mutationOrigin);
+        await store.deleteImage(imageMatch[1], imageMatch[2]);
+        empty(response, 204);
+        return;
+      }
+      if (url.pathname === "/api/build" && method === "POST") {
+        requireSession(request);
+        requireOrigin(request, config.mutationOrigin);
+        await readJson(request, MAX_HANDOFF_BODY);
+        await runBoundedBuild();
+        json(response, 200, { built: true });
+        return;
+      }
+
+      json(response, 404, { error: "not_found" });
+    } catch (error) {
+      const status = error instanceof RequestError ? error.status : /not found/i.test(error.message) ? 404 : /already exists/i.test(error.message) ? 409 : /invalid|required|large|escape/i.test(error.message) ? 400 : 500;
+      json(response, status, { error: error instanceof RequestError ? error.code : status === 500 ? "internal_error" : "invalid_request" });
+    }
+  });
+}
+
+const invoked = process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url);
+if (invoked) {
+  const root = path.resolve(fileURLToPath(new URL("..", import.meta.url)));
+  const server = createPostManagerServer({ projectRoot: root });
+  const port = positiveInteger(process.env.PORT, 8787, 65535, "PORT");
+  server.listen(port, "127.0.0.1", () => {
+    process.stdout.write(`Sport Massage Blogger listening on 127.0.0.1:${port}\n`);
+  });
+}

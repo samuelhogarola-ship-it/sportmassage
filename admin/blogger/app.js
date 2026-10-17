@@ -1104,8 +1104,9 @@ async function api(url, options = {}) {
       ...(options.body ? { "Content-Type": "application/json" } : {}),
     },
     body: options.body ? JSON.stringify(options.body) : undefined,
+    credentials: "same-origin",
   });
-  const data = await response.json();
+  const data = response.status === 204 ? {} : await response.json();
   if (!response.ok) {
     statusText.textContent = data.error || "Error";
     throw new Error(data.error || "Error");
