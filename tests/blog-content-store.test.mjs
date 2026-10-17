@@ -11,12 +11,13 @@ const content = await import("../scripts/blog-content-store.mjs").catch(
 function fixture() {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "sportmassage-store-"));
   const contentRoot = path.join(root, "content/blog");
-  const mediaRoot = path.join(root, "blog/media");
-  const outputRoot = path.join(root, "blog");
+  const mediaRoot = path.join(contentRoot, "media");
+  const outputRoot = path.join(root, ".state/public");
   fs.mkdirSync(contentRoot, { recursive: true });
   fs.mkdirSync(mediaRoot, { recursive: true });
-  fs.mkdirSync(outputRoot, { recursive: true });
-  fs.writeFileSync(path.join(outputRoot, "index.html"), "stable\n");
+  fs.mkdirSync(path.join(outputRoot, "releases/stable"), { recursive: true });
+  fs.writeFileSync(path.join(outputRoot, "releases/stable/index.html"), "stable\n");
+  fs.symlinkSync("releases/stable", path.join(outputRoot, "current"));
   return { root, contentRoot, mediaRoot, outputRoot };
 }
 
@@ -53,6 +54,15 @@ test("content paths and media names cannot escape configured roots", async () =>
     );
   }
   assert.equal(fs.existsSync(path.join(paths.root, "escape.webp")), false);
+});
+
+test("media must stay inside the snapshotted content tree", () => {
+  const paths = fixture();
+  assert.throws(() => content.createBlogContentStore({
+    ...paths,
+    mediaRoot: path.join(paths.root, "detached-media"),
+    build: async () => {},
+  }), /media root/i);
 });
 
 test("media accepts confined web images and enforces byte limits", async () => {
@@ -116,40 +126,37 @@ test("all mutations share one writer and cannot interleave", async () => {
 test("publish and unpublish commit source and generated output transactionally", async () => {
   assert.equal(typeof content.createBlogContentStore, "function");
   const paths = fixture();
-  const build = async () => {
+  const build = async ({ releaseRoot }) => {
     const source = JSON.parse(
       fs.readFileSync(path.join(paths.contentRoot, "transactional.json"), "utf8"),
     );
-    fs.writeFileSync(
-      path.join(paths.outputRoot, "index.html"),
-      `${source.status}\n`,
-    );
+    fs.mkdirSync(releaseRoot, { recursive: true });
+    fs.writeFileSync(path.join(releaseRoot, "index.html"), `${source.status}\n`);
   };
   const store = content.createBlogContentStore({ ...paths, build });
   await store.create(post({ slug: "transactional" }));
   await store.publish("transactional");
   assert.equal((await store.get("transactional")).meta.status, "published");
-  assert.equal(fs.readFileSync(path.join(paths.outputRoot, "index.html"), "utf8"), "published\n");
+  assert.equal(fs.readFileSync(path.join(paths.outputRoot, "current/index.html"), "utf8"), "published\n");
   await store.unpublish("transactional");
   assert.equal((await store.get("transactional")).meta.status, "draft");
-  assert.equal(fs.readFileSync(path.join(paths.outputRoot, "index.html"), "utf8"), "draft\n");
+  assert.equal(fs.readFileSync(path.join(paths.outputRoot, "current/index.html"), "utf8"), "draft\n");
 });
 
-test("failed or timed-out builds roll source and public output back", async () => {
+test("failed builds roll source and versioned public output back", async () => {
   assert.equal(typeof content.createBlogContentStore, "function");
   const paths = fixture();
   const store = content.createBlogContentStore({
     ...paths,
-    buildTimeoutMs: 40,
-    build: async () => {
-      fs.writeFileSync(path.join(paths.outputRoot, "index.html"), "broken\n");
-      await new Promise((resolve) => setTimeout(resolve, 100));
+    build: async ({ releaseRoot }) => {
+      fs.mkdirSync(releaseRoot, { recursive: true });
+      fs.writeFileSync(path.join(releaseRoot, "index.html"), "broken\n");
       throw new Error("build exploded");
     },
   });
   await store.create(post({ slug: "rollback" }));
-  await assert.rejects(() => store.publish("rollback"), /timed out|exploded/i);
+  await assert.rejects(() => store.publish("rollback"), /exploded/i);
   assert.equal((await store.get("rollback")).meta.status, "draft");
-  assert.equal(fs.readFileSync(path.join(paths.outputRoot, "index.html"), "utf8"), "stable\n");
+  assert.equal(fs.readFileSync(path.join(paths.outputRoot, "current/index.html"), "utf8"), "stable\n");
   assert.equal(fs.existsSync(path.join(paths.root, ".blogger-transaction")), false);
 });

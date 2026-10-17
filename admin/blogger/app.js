@@ -6,7 +6,6 @@ export function loadBloggerRuntime() {
     defaultAuthor: input.defaultAuthor || input.siteName || "",
     defaultLanguage: input.defaultLanguage || "es",
     apiBase: input.apiBase || "/api/posts",
-    buildEndpoint: input.buildEndpoint || "/api/build",
     publicPostBase: input.publicPostBase || "/f/",
     authModule: input.authModule || "/assets/js/blogger-auth.js",
   };
@@ -16,7 +15,7 @@ const bloggerConfig = loadBloggerRuntime();
 const authAdapter = await import(bloggerConfig.authModule);
 if (
   typeof authAdapter.requireBloggerAccess !== "function" ||
-  typeof authAdapter.getBloggerAccessToken !== "function"
+  typeof authAdapter.bloggerApiRequest !== "function"
 ) {
   throw new Error(
     "El adaptador de autenticacion de Blogger no esta configurado.",
@@ -332,7 +331,6 @@ function updatePublishedLink(slug, isPublished) {
 async function publishPost() {
   const post = await savePost("published");
   if (!post) return;
-  await api("/api/build", { method: "POST", body: {} });
   updatePublishedLink(post.slug, true);
   statusText.textContent = "Publicado correctamente";
 }
@@ -1087,31 +1085,18 @@ function matchesSearch(post, query) {
 }
 
 async function api(url, options = {}) {
-  const accessToken = await authAdapter.getBloggerAccessToken();
-  if (!accessToken) throw new Error("Inicia sesion como administrador.");
   const configuredUrl =
     url === "/api/posts"
       ? bloggerConfig.apiBase
       : url.startsWith("/api/posts/")
         ? `${bloggerConfig.apiBase.replace(/\/$/, "")}${url.slice("/api/posts".length)}`
-        : url === "/api/build"
-          ? bloggerConfig.buildEndpoint
-          : url;
-  const response = await fetch(configuredUrl, {
-    method: options.method || "GET",
-    headers: {
-      Authorization: `Bearer ${accessToken}`,
-      ...(options.body ? { "Content-Type": "application/json" } : {}),
-    },
-    body: options.body ? JSON.stringify(options.body) : undefined,
-    credentials: "same-origin",
-  });
-  const data = response.status === 204 ? {} : await response.json();
-  if (!response.ok) {
-    statusText.textContent = data.error || "Error";
-    throw new Error(data.error || "Error");
+        : url;
+  try {
+    return (await authAdapter.bloggerApiRequest(configuredUrl, options)) ?? {};
+  } catch (error) {
+    statusText.textContent = error.message || "Error";
+    throw error;
   }
-  return data;
 }
 
 function fileToBase64(file) {

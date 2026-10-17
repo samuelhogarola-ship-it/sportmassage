@@ -13,7 +13,7 @@ RestartSec=5
 NoNewPrivileges=true
 PrivateTmp=true
 ProtectSystem=strict
-ReadWritePaths=/srv/sportmassage/current/content/blog /srv/sportmassage/current/blog /srv/sportmassage/current/.blogger-state
+ReadWritePaths=/srv/sportmassage/current/content/blog /srv/sportmassage/current/.blogger-state
 
 [Install]
 WantedBy=multi-user.target

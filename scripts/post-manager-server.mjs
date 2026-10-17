@@ -13,7 +13,7 @@ import {
   verifyPassword,
 } from "./blogger-launch-session.mjs";
 import { createBlogContentStore } from "./blog-content-store.mjs";
-import { generateBlog } from "./generate-blog.mjs";
+import { createStaticReleaseBuildRunner } from "./blog-build-runner.mjs";
 
 export const HANDOFF_PROTOCOL = "wf-blogger-handoff/v1";
 export const BLOGGER_AUDIENCE = "sportmassagefuengirola";
@@ -104,6 +104,7 @@ function readConfiguration(projectRoot, env) {
   const mutationOrigin = env.NODE_ENV === "test" && env.BLOGGER_TEST_ORIGIN
     ? exactOrigin(env.BLOGGER_TEST_ORIGIN, "BLOGGER_TEST_ORIGIN", ["http:"])
     : publicOrigin;
+  const stateDirectory = configuredPath(root, env.BLOGGER_STATE_DIR, ".blogger-state", "State directory");
   return {
     root,
     publicOrigin,
@@ -114,10 +115,10 @@ function readConfiguration(projectRoot, env) {
     handoffSecret,
     username,
     passwordHash,
-    stateDirectory: configuredPath(root, env.BLOGGER_STATE_DIR, ".blogger-state", "State directory"),
+    stateDirectory,
     contentRoot: configuredPath(root, env.BLOGGER_CONTENT_ROOT, "content/blog", "Content root"),
     mediaRoot: configuredPath(root, env.BLOGGER_MEDIA_ROOT, "content/blog/media", "Media root"),
-    outputRoot: configuredPath(root, env.BLOGGER_OUTPUT_ROOT, "blog", "Output root"),
+    outputRoot: configuredPath(root, env.BLOGGER_OUTPUT_ROOT, path.join(stateDirectory, "public"), "Output root"),
     sessionTtlMs: positiveInteger(env.BLOGGER_SESSION_TTL_SECONDS, 8 * 60 * 60, 24 * 60 * 60, "Session TTL") * 1_000,
     loginAttempts: positiveInteger(env.BLOGGER_LOGIN_MAX_ATTEMPTS, 5, 20, "Login attempts"),
     buildTimeoutMs: positiveInteger(env.BLOGGER_BUILD_TIMEOUT_MS, 120_000, 15 * 60 * 1_000, "Build timeout"),
@@ -242,40 +243,21 @@ export function createPostManagerServer({
     limit: config.loginAttempts,
   });
   const audit = createAuditLogger(config.stateDirectory);
-  const buildBlog = build ?? (() => generateBlog({
+  const buildBlog = build ?? createStaticReleaseBuildRunner({
     root: config.root,
     contentRoot: config.contentRoot,
     mediaRoot: config.mediaRoot,
-    outputRoot: config.outputRoot,
-    transactionRoot: path.join(config.stateDirectory, "transaction"),
-  }));
+    timeoutMs: config.buildTimeoutMs,
+    env,
+  });
   const store = createBlogContentStore({
     root: config.root,
     contentRoot: config.contentRoot,
     mediaRoot: config.mediaRoot,
     outputRoot: config.outputRoot,
+    transactionRoot: path.join(config.stateDirectory, "transaction"),
     build: buildBlog,
-    buildTimeoutMs: config.buildTimeoutMs,
   });
-
-  async function runBoundedBuild() {
-    const controller = new AbortController();
-    let timer;
-    try {
-      return await Promise.race([
-        Promise.resolve(buildBlog({ signal: controller.signal })),
-        new Promise((_, reject) => {
-          timer = setTimeout(() => {
-            controller.abort();
-            reject(new Error(`Build timed out after ${config.buildTimeoutMs}ms`));
-          }, config.buildTimeoutMs);
-          timer.unref?.();
-        }),
-      ]);
-    } finally {
-      clearTimeout(timer);
-    }
-  }
 
   function currentSession(request) {
     return sessions.get(parseCookies(request)[COOKIE_NAME]);
@@ -384,9 +366,7 @@ export function createPostManagerServer({
         requireSession(request);
         requireOrigin(request, config.mutationOrigin);
         const body = await readJson(request, MAX_POST_BODY);
-        const desired = body.status;
-        const created = await store.create({ ...body, status: "draft" });
-        json(response, 201, desired === "published" ? await store.publish(created.slug) : created);
+        json(response, 201, await store.create(body));
         return;
       }
       if (postMatch && !postMatch[2] && method === "GET") {
@@ -398,11 +378,7 @@ export function createPostManagerServer({
         requireSession(request);
         requireOrigin(request, config.mutationOrigin);
         const body = await readJson(request, MAX_POST_BODY);
-        const desired = body.status;
-        const updated = desired === "published"
-          ? await store.updatePublished(postMatch[1], body)
-          : await store.update(postMatch[1], { ...body, status: "draft" });
-        json(response, 200, updated);
+        json(response, 200, await store.update(postMatch[1], body));
         return;
       }
       if (postMatch && !postMatch[2] && method === "DELETE") {
@@ -453,7 +429,7 @@ export function createPostManagerServer({
         requireSession(request);
         requireOrigin(request, config.mutationOrigin);
         await readJson(request, MAX_HANDOFF_BODY);
-        await runBoundedBuild();
+        await store.rebuild();
         json(response, 200, { built: true });
         return;
       }

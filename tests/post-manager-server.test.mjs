@@ -334,9 +334,10 @@ test("authenticated media upload, metadata update and deletion match the editor 
 test("editing a published post rolls source and public output back when rebuild fails", async (t) => {
   const root = fixture();
   let failBuild = false;
-  const build = async () => {
+  const build = async ({ releaseRoot }) => {
     const source = JSON.parse(fs.readFileSync(path.join(root, "content/blog/published-edit.json"), "utf8"));
-    fs.writeFileSync(path.join(root, "blog/index.html"), `${source.title}\n`);
+    fs.mkdirSync(releaseRoot, { recursive: true });
+    fs.writeFileSync(path.join(releaseRoot, "index.html"), `${source.title}\n`);
     if (failBuild) throw new Error("fixture build failed");
   };
   const app = await listen({ root, build });
@@ -367,7 +368,7 @@ test("editing a published post rolls source and public output back when rebuild 
     body: JSON.stringify(original),
   });
   assert.equal(created.status, 201, await created.clone().text());
-  assert.equal(fs.readFileSync(path.join(root, "blog/index.html"), "utf8"), "Original published title\n");
+  assert.equal(fs.readFileSync(path.join(root, ".blogger-state/public/current/index.html"), "utf8"), "Original published title\n");
 
   failBuild = true;
   const failed = await fetch(`${app.url}/api/posts/published-edit`, {
@@ -379,29 +380,65 @@ test("editing a published post rolls source and public output back when rebuild 
   const source = JSON.parse(fs.readFileSync(path.join(root, "content/blog/published-edit.json"), "utf8"));
   assert.equal(source.title, "Original published title");
   assert.equal(source.status, "published");
-  assert.equal(fs.readFileSync(path.join(root, "blog/index.html"), "utf8"), "Original published title\n");
+  assert.equal(fs.readFileSync(path.join(root, ".blogger-state/public/current/index.html"), "utf8"), "Original published title\n");
 });
 
-test("the protected build endpoint returns after its configured timeout", async (t) => {
+test("service transactions and versioned releases stay under the configured writable state directory", async (t) => {
+  const root = fixture();
+  let observed = false;
   const app = await listen({
-    env: { BLOGGER_BUILD_TIMEOUT_MS: "40" },
-    build: async () => new Promise(() => {}),
+    root,
+    env: { BLOGGER_STATE_DIR: ".service-state" },
+    build: async ({ releaseRoot }) => {
+      assert.equal(releaseRoot.startsWith(path.join(root, ".service-state/public/releases")), true);
+      assert.equal(fs.existsSync(path.join(root, ".service-state/transaction")), true);
+      fs.mkdirSync(releaseRoot, { recursive: true });
+      fs.writeFileSync(path.join(releaseRoot, "index.html"), "published\n");
+      observed = true;
+    },
   });
   t.after(app.close);
   const loggedIn = await login(app);
-  const started = Date.now();
-  const response = await fetch(`${app.url}/api/build`, {
+  const response = await fetch(`${app.url}/api/posts`, {
     method: "POST",
-    headers: {
-      cookie: cookie(loggedIn),
-      origin: "http://127.0.0.1",
-      "content-type": "application/json",
+    headers: { cookie: cookie(loggedIn), origin: "http://127.0.0.1", "content-type": "application/json" },
+    body: JSON.stringify({
+      title: "Atomic create", slug: "atomic-create", description: "Created and published in one mutation.",
+      date: "2026-10-18", lang: "es", author: "Sport Massage in Fuengirola", status: "published",
+      image: "", tags: [], category: "Bienestar", level: "", body: "Body",
+    }),
+  });
+  assert.equal(response.status, 201, await response.clone().text());
+  assert.equal(observed, true);
+  assert.equal(fs.lstatSync(path.join(root, ".service-state/public/current")).isSymbolicLink(), true);
+  assert.equal(fs.existsSync(path.join(root, ".blogger-transaction")), false);
+});
+
+test("the retained build endpoint is serialized with publishing through the rollback-safe writer", async (t) => {
+  let active = 0;
+  let maximum = 0;
+  const app = await listen({
+    build: async ({ releaseRoot }) => {
+      active += 1;
+      maximum = Math.max(maximum, active);
+      await new Promise((resolve) => setTimeout(resolve, 30));
+      fs.mkdirSync(releaseRoot, { recursive: true });
+      fs.writeFileSync(path.join(releaseRoot, "index.html"), "built\n");
+      active -= 1;
     },
-    body: "{}",
-    signal: AbortSignal.timeout(500),
-  }).catch(() => null);
-  assert.notEqual(response, null, "build endpoint exceeded its timeout");
-  assert.equal(response.status, 500);
-  assert.deepEqual(await response.json(), { error: "internal_error" });
-  assert.ok(Date.now() - started < 1_000);
+  });
+  t.after(app.close);
+  const loggedIn = await login(app);
+  const headers = { cookie: cookie(loggedIn), origin: "http://127.0.0.1", "content-type": "application/json" };
+  await fetch(`${app.url}/api/posts`, {
+    method: "POST", headers,
+    body: JSON.stringify({ title: "Draft", slug: "draft", description: "Draft post for serialized build coverage.", date: "2026-10-18", lang: "es", author: "Author", status: "draft", image: "", tags: [], category: "", level: "", body: "Body" }),
+  });
+  const [published, rebuilt] = await Promise.all([
+    fetch(`${app.url}/api/posts/draft/publish`, { method: "POST", headers, body: "{}" }),
+    fetch(`${app.url}/api/build`, { method: "POST", headers, body: "{}" }),
+  ]);
+  assert.equal(published.status, 200, await published.clone().text());
+  assert.equal(rebuilt.status, 200, await rebuilt.clone().text());
+  assert.equal(maximum, 1);
 });

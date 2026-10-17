@@ -94,6 +94,7 @@ test("Umami is injected only with a valid explicit website UUID", async () => {
       ...paths,
       umamiWebsiteId: websiteId,
       umamiScriptUrl: "https://analytics.example.com/script.js",
+      umamiProductionVerified: websiteId === validId,
     });
     const html = fs.readFileSync(path.join(paths.outputRoot, "index.html"), "utf8");
     assert.equal(html.includes("data-website-id"), expected);

@@ -27,8 +27,8 @@ function renderMarkdown(markdown) {
     .join("\n    ");
 }
 
-function trackerMarkup(websiteId, scriptUrl) {
-  if (!UUID_PATTERN.test(websiteId ?? "")) return "";
+function trackerMarkup(websiteId, scriptUrl, productionVerified) {
+  if (productionVerified !== true || !UUID_PATTERN.test(websiteId ?? "")) return "";
   let parsed;
   try {
     parsed = new URL(scriptUrl);
@@ -79,6 +79,7 @@ export async function generateBlog({
   mediaRoot = path.join(contentRoot, "media"),
   umamiWebsiteId = process.env.UMAMI_WEBSITE_ID,
   umamiScriptUrl = process.env.UMAMI_SCRIPT_URL,
+  umamiProductionVerified = process.env.UMAMI_PRODUCTION_VERIFIED === "true",
 } = {}) {
   const posts = fs.existsSync(contentRoot)
     ? fs.readdirSync(contentRoot, { withFileTypes: true })
@@ -87,16 +88,15 @@ export async function generateBlog({
         .filter((post) => post.status === "published")
         .sort((a, b) => b.date.localeCompare(a.date) || a.slug.localeCompare(b.slug))
     : [];
-  const tracker = trackerMarkup(umamiWebsiteId, umamiScriptUrl);
-  const staging = `${outputRoot}.staging-${process.pid}`;
-  fs.rmSync(staging, { recursive: true, force: true });
-  fs.mkdirSync(staging, { recursive: true });
-  if (fs.existsSync(mediaRoot)) fs.cpSync(mediaRoot, path.join(staging, "media"), { recursive: true });
+  const tracker = trackerMarkup(umamiWebsiteId, umamiScriptUrl, umamiProductionVerified);
+  fs.rmSync(outputRoot, { recursive: true, force: true });
+  fs.mkdirSync(outputRoot, { recursive: true });
+  if (fs.existsSync(mediaRoot)) fs.cpSync(mediaRoot, path.join(outputRoot, "media"), { recursive: true });
 
   const cards = posts.length
     ? posts.map((post) => `<article class="post-card"><p class="meta">${escapeHtml(post.date)} · ${escapeHtml(post.category)}</p><h2><a href="/blog/${escapeHtml(post.slug)}/">${escapeHtml(post.title)}</a></h2><p>${escapeHtml(post.description)}</p></article>`).join("\n      ")
     : `<section class="post-card" aria-labelledby="empty-title"><h2 id="empty-title">Próximamente</h2><p>Estamos preparando nuevos artículos para ayudarte a cuidar tu cuerpo en el día a día.</p></section>`;
-  fs.writeFileSync(path.join(staging, "index.html"), page({
+  fs.writeFileSync(path.join(outputRoot, "index.html"), page({
     title: "Blog | Sport Massage in Fuengirola",
     description: "Consejos de masaje deportivo, recuperación y bienestar en Fuengirola.",
     canonical: `${SITE_ORIGIN}/blog/`,
@@ -105,7 +105,7 @@ export async function generateBlog({
   }));
 
   for (const post of posts) {
-    const directory = path.join(staging, post.slug);
+    const directory = path.join(outputRoot, post.slug);
     fs.mkdirSync(directory, { recursive: true });
     fs.writeFileSync(path.join(directory, "index.html"), page({
       title: `${post.title} | Sport Massage in Fuengirola`,
@@ -116,16 +116,6 @@ export async function generateBlog({
     }));
   }
 
-  const previous = `${outputRoot}.previous-${process.pid}`;
-  fs.rmSync(previous, { recursive: true, force: true });
-  if (fs.existsSync(outputRoot)) fs.renameSync(outputRoot, previous);
-  try {
-    fs.renameSync(staging, outputRoot);
-    fs.rmSync(previous, { recursive: true, force: true });
-  } catch (error) {
-    if (fs.existsSync(previous) && !fs.existsSync(outputRoot)) fs.renameSync(previous, outputRoot);
-    throw error;
-  }
   return { posts: posts.length };
 }
 

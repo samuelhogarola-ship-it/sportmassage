@@ -17,6 +17,13 @@ location /admin/blogger/ {
     try_files $uri $uri/ =404;
 }
 
+# The active release is an atomically replaced symlink. Nginx never observes a
+# missing public tree while a new version is built or activated.
+location / {
+    root /srv/sportmassage/current/.blogger-state/public/current;
+    try_files $uri $uri/ $uri/index.html =404;
+}
+
 location ~ ^/(api/admin|api/blogger|api/posts|api/build|\.well-known/wf-blogger\.json) {
     proxy_pass http://127.0.0.1:8787;
     proxy_set_header Host $host;

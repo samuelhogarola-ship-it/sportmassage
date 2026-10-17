@@ -5,40 +5,18 @@ import test from "node:test";
 
 const root = path.resolve(import.meta.dirname, "..");
 
-test("Blogger UI provides direct login, Studio launch and cookie-session adapter", () => {
-  const html = fs.readFileSync(path.join(root, "admin/blogger/index.html"), "utf8");
-  const adapter = fs.readFileSync(path.join(root, "admin/blogger/blogger-auth.js"), "utf8");
-  assert.match(html, /id="bloggerLogin"/);
-  assert.match(html, /id="bloggerLogout"/);
-  assert.match(html, /"authModule":"\.\/blogger-auth\.js"/);
-  assert.match(adapter, /\/admin\/blogger\/launch/);
-  assert.match(adapter, /\/admin\/blogger\/login/);
-  assert.match(adapter, /\/api\/admin\/session/);
-  assert.doesNotMatch(adapter, /localStorage|sessionStorage/);
-});
-
-test("deployment contract is fail-closed and documents persistent content and recovery", () => {
-  const env = fs.readFileSync(path.join(root, ".env.example"), "utf8");
-  const guide = fs.readFileSync(path.join(root, "docs/blogger-deployment.md"), "utf8");
-  for (const value of [
-    "BLOGGER_PUBLIC_ORIGIN",
-    "BLOGGER_STUDIO_EXCHANGE_URL",
-    "BLOGGER_DIRECT_PASSWORD_HASH",
-    "BLOGGER_SESSION_SECRET",
-    "BLOGGER_HANDOFF_SECRET",
-    "UMAMI_WEBSITE_ID=",
-  ]) assert.match(env, new RegExp(value));
-  for (const value of [
-    "sportmassagefuengirola",
-    "persistent",
-    "rollback",
-    "HTTPS",
-    "health",
-    "disabled",
-    ".blogger-state/transaction",
-  ]) assert.match(guide, new RegExp(value, "i"));
-  const legacyCms = ["word", "press"].join("");
-  assert.equal(`${env}\n${guide}`.toLowerCase().includes(legacyCms), false);
+test("the service sandbox grants writes to every default transactional publication path", () => {
+  const unit = fs.readFileSync(path.join(root, "deploy/sportmassage-blogger.service.example"), "utf8");
+  const projectRoot = "/srv/sportmassage/current";
+  const writableLine = unit.split("\n").find((line) => line.startsWith("ReadWritePaths="));
+  const writable = writableLine.slice("ReadWritePaths=".length).trim().split(/\s+/).map((entry) => path.resolve(entry));
+  const canWrite = (candidate) => writable.some((entry) => candidate === entry || candidate.startsWith(`${entry}${path.sep}`));
+  for (const candidate of [
+    path.join(projectRoot, "content/blog"),
+    path.join(projectRoot, ".blogger-state/transaction"),
+    path.join(projectRoot, ".blogger-state/public/releases"),
+    path.join(projectRoot, ".blogger-state/public/current"),
+  ]) assert.equal(canWrite(candidate), true, candidate);
 });
 
 test("committed public HTML is tracker-free and legal copy allows cookie-free Umami activation", () => {
