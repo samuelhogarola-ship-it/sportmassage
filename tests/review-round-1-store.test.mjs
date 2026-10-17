@@ -5,6 +5,7 @@ import path from "node:path";
 import test from "node:test";
 
 const content = await import("../scripts/blog-content-store.mjs").catch(() => ({}));
+const onePixelPng = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=", "base64");
 
 function fixture() {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "sportmassage-round1-store-"));
@@ -98,7 +99,7 @@ test("published delete and media mutations rebuild transactionally and roll back
   const controls = { fail: false };
   const store = content.createBlogContentStore({ ...paths, build: buildFromSources(paths, controls) });
   await store.create(post({ status: "published" }));
-  await store.saveImage(post().slug, { filename: "cover.png", bytes: Buffer.from("image") });
+  await store.saveImage(post().slug, { filename: "cover.png", bytes: onePixelPng });
   controls.fail = true;
   await assert.rejects(() => store.deleteImage(post().slug, "cover.png"), /fixture build failed/);
   assert.equal(fs.existsSync(path.join(paths.mediaRoot, post().slug, "cover.png")), true);
@@ -150,30 +151,32 @@ test("startup recovery rolls back a prepared release or accepts an already-switc
   assert.equal(typeof content.recoverBlogTransaction, "function");
   const paths = fixture();
   const releases = path.join(paths.outputRoot, "releases");
-  const oldRelease = path.join(releases, "old");
-  const newRelease = path.join(releases, "new");
+  const oldId = "1700000000000-aaaaaaaaaaaaaaaa";
+  const newId = "1700000000001-bbbbbbbbbbbbbbbb";
+  const oldRelease = path.join(releases, oldId);
+  const newRelease = path.join(releases, newId);
   fs.mkdirSync(oldRelease, { recursive: true });
   fs.mkdirSync(newRelease, { recursive: true });
   fs.writeFileSync(path.join(oldRelease, "index.html"), "old\n");
   fs.writeFileSync(path.join(newRelease, "index.html"), "new\n");
   fs.mkdirSync(paths.outputRoot, { recursive: true });
-  fs.symlinkSync("releases/old", path.join(paths.outputRoot, "current"));
+  fs.symlinkSync(`releases/${oldId}`, path.join(paths.outputRoot, "current"));
   fs.writeFileSync(path.join(paths.contentRoot, `${post().slug}.json`), `${JSON.stringify(post({ title: "mutated" }))}\n`);
   fs.mkdirSync(path.join(paths.transactionRoot, "content"), { recursive: true });
   fs.writeFileSync(path.join(paths.transactionRoot, "content", `${post().slug}.json`), `${JSON.stringify(post({ title: "original" }))}\n`);
-  fs.writeFileSync(path.join(paths.transactionRoot, "journal.json"), `${JSON.stringify({ version: 1, phase: "release_ready", releaseId: "new", previousTarget: "releases/old" })}\n`);
+  fs.writeFileSync(path.join(paths.transactionRoot, "journal.json"), `${JSON.stringify({ version: 1, phase: "release_ready", releaseId: newId, previousTarget: `releases/${oldId}` })}\n`);
   content.recoverBlogTransaction(paths);
   assert.equal(JSON.parse(fs.readFileSync(path.join(paths.contentRoot, `${post().slug}.json`), "utf8")).title, "original");
-  assert.equal(fs.readlinkSync(path.join(paths.outputRoot, "current")), "releases/old");
+  assert.equal(fs.readlinkSync(path.join(paths.outputRoot, "current")), `releases/${oldId}`);
   assert.equal(fs.existsSync(newRelease), false);
 
   fs.mkdirSync(newRelease, { recursive: true });
   fs.writeFileSync(path.join(newRelease, "index.html"), "new\n");
   fs.rmSync(path.join(paths.outputRoot, "current"));
-  fs.symlinkSync("releases/new", path.join(paths.outputRoot, "current"));
+  fs.symlinkSync(`releases/${newId}`, path.join(paths.outputRoot, "current"));
   fs.mkdirSync(path.join(paths.transactionRoot, "content"), { recursive: true });
-  fs.writeFileSync(path.join(paths.transactionRoot, "journal.json"), `${JSON.stringify({ version: 1, phase: "release_ready", releaseId: "new", previousTarget: "releases/old" })}\n`);
+  fs.writeFileSync(path.join(paths.transactionRoot, "journal.json"), `${JSON.stringify({ version: 1, phase: "release_ready", releaseId: newId, previousTarget: `releases/${oldId}` })}\n`);
   content.recoverBlogTransaction(paths);
-  assert.equal(fs.readlinkSync(path.join(paths.outputRoot, "current")), "releases/new");
+  assert.equal(fs.readlinkSync(path.join(paths.outputRoot, "current")), `releases/${newId}`);
   assert.equal(fs.existsSync(paths.transactionRoot), false);
 });

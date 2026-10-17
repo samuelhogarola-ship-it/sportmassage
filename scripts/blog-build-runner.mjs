@@ -14,8 +14,12 @@ function terminate(child, signal) {
 
 export function runIsolatedBuild({ script, args = [], env = {}, timeoutMs = 120_000, killGraceMs = 1_000 }) {
   return new Promise((resolve, reject) => {
+    const inherited = {};
+    for (const name of ["PATH", "SystemRoot", "WINDIR", "TMPDIR", "TMP", "TEMP", "LANG", "LC_ALL", "TZ"]) if (process.env[name] !== undefined) inherited[name] = process.env[name];
+    const supplied = {};
+    for (const [name, value] of Object.entries(env)) if (/^(?:BLOG_BUILD_|UMAMI_)[A-Z0-9_]*$/.test(name) && value !== undefined) supplied[name] = String(value);
     const child = spawn(process.execPath, [path.resolve(script), ...args], {
-      env: { ...process.env, ...env },
+      env: { ...inherited, ...supplied },
       stdio: ["ignore", "ignore", "pipe"],
       detached: process.platform !== "win32",
     });

@@ -176,7 +176,7 @@ export function createRateLimiter({
 }
 
 export function createAuditLogger(stateDirectory, now = () => new Date().toISOString()) {
-  fs.mkdirSync(stateDirectory, { recursive: true, mode: 0o700 });
+  fs.mkdirSync(stateDirectory, { recursive: true, mode: 0o750 });
   const auditFile = path.join(stateDirectory, "audit.ndjson");
   return (event) => {
     const safeEvent = {
@@ -184,7 +184,7 @@ export function createAuditLogger(stateDirectory, now = () => new Date().toISOSt
       event: String(event.event || "session"),
       origin: event.origin === "studio" ? "studio" : "direct",
     };
-    fs.appendFileSync(auditFile, `${JSON.stringify(safeEvent)}\n`, { mode: 0o600 });
+    fs.appendFileSync(auditFile, `${JSON.stringify(safeEvent)}\n`, { mode: 0o640 });
   };
 }
 

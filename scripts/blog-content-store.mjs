@@ -1,19 +1,15 @@
 import fs from "node:fs";
 import path from "node:path";
 import { randomBytes } from "node:crypto";
+import { validateImage } from "./image-validation.mjs";
+import { withFilesystemLock } from "./filesystem-lock.mjs";
+import { assertNoSymlinkPath, copyRegularTree, validateRegularTree } from "./safe-filesystem.mjs";
 
 const SLUG_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
-const IMAGE_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._-]{0,99}\.(?:avif|jpe?g|png|webp)$/i;
+const IMAGE_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._-]{0,99}\.(?:gif|jpe?g|png|webp)$/i;
 const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
-
-function assertInside(root, candidate, label) {
-  const resolvedRoot = path.resolve(root);
-  const resolved = path.resolve(candidate);
-  if (resolved !== resolvedRoot && !resolved.startsWith(`${resolvedRoot}${path.sep}`)) {
-    throw new Error(`${label} escapes its configured root`);
-  }
-  return resolved;
-}
+const RELEASE_ID_PATTERN = /^\d{13}-[0-9a-f]{16}$/;
+const RELEASE_TARGET_PATTERN = /^releases\/\d{13}-[0-9a-f]{16}$/;
 
 function validateSlug(slug) {
   if (typeof slug !== "string" || !SLUG_PATTERN.test(slug)) throw new Error("Invalid post slug");
@@ -27,17 +23,23 @@ function normalizePost(input, forcedSlug) {
     if (typeof input[key] !== "string" || !input[key].trim()) throw new Error(`Post ${key} is required`);
   }
   if (!DATE_PATTERN.test(input.date)) throw new Error("Post date is invalid");
+  const [year, month, day] = input.date.split("-").map(Number);
+  const calendarDate = new Date(Date.UTC(year, month - 1, day));
+  if (calendarDate.getUTCFullYear() !== year || calendarDate.getUTCMonth() !== month - 1 || calendarDate.getUTCDate() !== day) throw new Error("Post date is invalid");
   if (!/^[a-z]{2}$/.test(input.lang)) throw new Error("Post language is invalid");
   if (!["draft", "published"].includes(input.status)) throw new Error("Post status is invalid");
-  if (input.tags !== undefined && (!Array.isArray(input.tags) || input.tags.some((tag) => typeof tag !== "string"))) {
+  const tags = typeof input.tags === "string" ? input.tags.split(",").map((tag) => tag.trim()).filter(Boolean) : (input.tags ?? []);
+  if (!Array.isArray(tags) || tags.some((tag) => typeof tag !== "string")) {
     throw new Error("Post tags are invalid");
   }
+  const contentFormat = input.content_format ?? "markdown";
+  if (contentFormat !== "markdown") throw new Error("Post content format is invalid");
   return {
     title: input.title.trim(), slug, description: input.description.trim(), date: input.date,
     lang: input.lang, author: input.author.trim(), status: input.status,
-    image: typeof input.image === "string" ? input.image : "", tags: input.tags ?? [],
+    image: typeof input.image === "string" ? input.image : "", tags: [...new Set(tags.map((tag) => tag.trim()).filter(Boolean))],
     category: typeof input.category === "string" ? input.category : "",
-    level: typeof input.level === "string" ? input.level : "", body: input.body,
+    level: typeof input.level === "string" ? input.level : "", content_format: contentFormat, body: input.body,
   };
 }
 
@@ -53,6 +55,8 @@ function editorPost(post, mediaRoot) {
   const metadataFile = path.join(imageDirectory, ".metadata.json");
   let metadata = {};
   if (fs.existsSync(metadataFile)) {
+    const stat = fs.lstatSync(metadataFile);
+    if (stat.isSymbolicLink() || !stat.isFile()) throw new Error("Image metadata must be a regular file");
     try { metadata = JSON.parse(fs.readFileSync(metadataFile, "utf8")); } catch { metadata = {}; }
   }
   const images = fs.existsSync(imageDirectory)
@@ -65,20 +69,26 @@ function editorPost(post, mediaRoot) {
           isFeatured: metadata[entry.name]?.isFeatured === true, canDelete: true,
         })).sort((a, b) => a.file.localeCompare(b.file))
     : [];
-  return { slug: post.slug, meta: { ...post }, body: post.body, format: "markdown", images,
+  return { slug: post.slug, meta: { ...post }, body: post.body, format: post.content_format, images,
     isPublished: post.status === "published", words: post.body.trim() ? post.body.trim().split(/\s+/).length : 0 };
 }
 
 function copyDirectory(source, destination) {
-  if (fs.existsSync(source)) fs.cpSync(source, destination, { recursive: true, force: true });
+  if (fs.existsSync(source)) copyRegularTree(source, destination);
 }
 
 function currentTarget(outputRoot) {
   const current = path.join(outputRoot, "current");
-  try { return fs.lstatSync(current).isSymbolicLink() ? fs.readlinkSync(current) : null; } catch { return null; }
+  try {
+    if (!fs.lstatSync(current).isSymbolicLink()) throw new Error("Current release pointer is invalid");
+    const target = fs.readlinkSync(current);
+    if (!RELEASE_TARGET_PATTERN.test(target)) throw new Error("Current release pointer is invalid");
+    return target;
+  } catch (error) { if (error.code === "ENOENT") return null; throw error; }
 }
 
 function activateRelease(outputRoot, target) {
+  if (!RELEASE_TARGET_PATTERN.test(target)) throw new Error("Release target is invalid");
   fs.mkdirSync(outputRoot, { recursive: true });
   const current = path.join(outputRoot, "current");
   const temporary = path.join(outputRoot, `.current-${process.pid}-${randomBytes(6).toString("hex")}`);
@@ -87,20 +97,25 @@ function activateRelease(outputRoot, target) {
 }
 
 function restoreContent(contentRoot, snapshotRoot) {
-  fs.rmSync(contentRoot, { recursive: true, force: true });
-  fs.mkdirSync(contentRoot, { recursive: true });
-  copyDirectory(snapshotRoot, contentRoot);
+  validateRegularTree(snapshotRoot);
+  const nonce = `${process.pid}-${randomBytes(6).toString("hex")}`;
+  const prepared = `${contentRoot}.restore-${nonce}`; const backup = `${contentRoot}.backup-${nonce}`;
+  copyDirectory(snapshotRoot, prepared);
+  fs.renameSync(contentRoot, backup);
+  try { fs.renameSync(prepared, contentRoot); fs.rmSync(backup, { recursive: true, force: true }); }
+  catch (error) { if (!fs.existsSync(contentRoot) && fs.existsSync(backup)) fs.renameSync(backup, contentRoot); fs.rmSync(prepared, { recursive: true, force: true }); throw error; }
 }
 
 export function recoverBlogTransaction({ root, contentRoot, outputRoot, transactionRoot }) {
   const projectRoot = path.resolve(root);
-  const sources = assertInside(projectRoot, contentRoot, "Content root");
-  const output = assertInside(projectRoot, outputRoot, "Output root");
-  const transaction = assertInside(projectRoot, transactionRoot, "Transaction root");
+  const sources = assertNoSymlinkPath(projectRoot, contentRoot, "Content root");
+  const output = assertNoSymlinkPath(projectRoot, outputRoot, "Output root");
+  const transaction = assertNoSymlinkPath(projectRoot, transactionRoot, "Transaction root");
   const journalFile = path.join(transaction, "journal.json");
   if (!fs.existsSync(journalFile)) return false;
+  if (fs.lstatSync(journalFile).isSymbolicLink()) throw new Error("Invalid transaction journal");
   const journal = JSON.parse(fs.readFileSync(journalFile, "utf8"));
-  if (journal?.version !== 1 || typeof journal.releaseId !== "string") throw new Error("Invalid transaction journal");
+  if (journal?.version !== 1 || !["prepared", "building", "release_ready", "activated"].includes(journal.phase) || !RELEASE_ID_PATTERN.test(journal.releaseId ?? "") || !(journal.previousTarget === null || RELEASE_TARGET_PATTERN.test(journal.previousTarget ?? ""))) throw new Error("Invalid transaction journal");
   const releaseTarget = `releases/${journal.releaseId}`;
   if (currentTarget(output) === releaseTarget) {
     fs.rmSync(transaction, { recursive: true, force: true });
@@ -115,25 +130,30 @@ export function recoverBlogTransaction({ root, contentRoot, outputRoot, transact
 
 export function createBlogContentStore({
   root, contentRoot, mediaRoot, outputRoot, transactionRoot, build,
+  lockDirectory,
   maxMediaBytes = 10 * 1024 * 1024, mutationHook = async () => {},
   removeRelease = (directory) => fs.rmSync(directory, { recursive: true, force: true }),
-  onMaintenanceError = ({ phase, error }) => console.error(`[blogger] post-commit ${phase} failed`, error),
+  onMaintenanceError = (record) => console.error(JSON.stringify(record)),
 }) {
   const projectRoot = path.resolve(root);
-  const sources = assertInside(projectRoot, contentRoot, "Content root");
-  const media = assertInside(sources, mediaRoot, "Media root");
-  const output = assertInside(projectRoot, outputRoot, "Output root");
-  const transaction = assertInside(projectRoot, transactionRoot ?? path.join(projectRoot, ".blogger-transaction"), "Transaction root");
+  const sources = assertNoSymlinkPath(projectRoot, contentRoot, "Content root");
+  const media = assertNoSymlinkPath(sources, mediaRoot, "Media root");
+  const output = assertNoSymlinkPath(projectRoot, outputRoot, "Output root");
+  const transaction = assertNoSymlinkPath(projectRoot, transactionRoot ?? path.join(projectRoot, ".blogger-transaction"), "Transaction root");
+  const lock = assertNoSymlinkPath(projectRoot, lockDirectory ?? path.join(path.dirname(transaction), "writer.lock"), "Writer lock");
+  const overlaps = (left, right) => left === right || left.startsWith(`${right}${path.sep}`) || right.startsWith(`${left}${path.sep}`);
+  if (overlaps(sources, output) || overlaps(sources, transaction) || overlaps(output, transaction) || overlaps(lock, sources) || overlaps(lock, output) || overlaps(lock, transaction)) throw new Error("Content, output, transaction, and writer lock roots must not overlap");
   if (typeof build !== "function") throw new Error("Build function is required");
-  fs.mkdirSync(sources, { recursive: true });
-  fs.mkdirSync(media, { recursive: true });
-  fs.mkdirSync(path.join(output, "releases"), { recursive: true });
-  recoverBlogTransaction({ root: projectRoot, contentRoot: sources, outputRoot: output, transactionRoot: transaction });
+  fs.mkdirSync(sources, { recursive: true, mode: 0o750 });
+  fs.mkdirSync(media, { recursive: true, mode: 0o750 });
+  fs.mkdirSync(path.join(output, "releases"), { recursive: true, mode: 0o750 });
+  fs.chmodSync(output, 0o750); fs.chmodSync(path.join(output, "releases"), 0o750);
   let writer = Promise.resolve();
+  let recovered = false;
 
   function sourceFile(slug) {
     validateSlug(slug);
-    return assertInside(sources, path.join(sources, `${slug}.json`), "Post path");
+    return assertNoSymlinkPath(sources, path.join(sources, `${slug}.json`), "Post path");
   }
   function read(slug) {
     const file = sourceFile(slug);
@@ -141,7 +161,10 @@ export function createBlogContentStore({
     return normalizePost(JSON.parse(fs.readFileSync(file, "utf8")), slug);
   }
   function mutate(label, operation) {
-    const run = writer.then(async () => { await mutationHook(label); return operation(); });
+    const run = writer.then(() => withFilesystemLock(lock, async () => {
+      if (!recovered) { recoverBlogTransaction({ root: projectRoot, contentRoot: sources, outputRoot: output, transactionRoot: transaction }); recovered = true; }
+      await mutationHook(label); return operation();
+    }));
     writer = run.catch(() => {});
     return run;
   }
@@ -149,11 +172,13 @@ export function createBlogContentStore({
   function cleanupOldReleases() {
     const active = currentTarget(output);
     for (const entry of fs.readdirSync(path.join(output, "releases"), { withFileTypes: true })) {
-      if (entry.isDirectory() && `releases/${entry.name}` !== active) removeRelease(path.join(output, "releases", entry.name));
+      if (!RELEASE_ID_PATTERN.test(entry.name) || !entry.isDirectory() || entry.isSymbolicLink()) throw Object.assign(new Error("Invalid release entry"), { code: "INVALID_RELEASE_ENTRY" });
+      if (`releases/${entry.name}` !== active) removeRelease(path.join(output, "releases", entry.name));
     }
   }
   function reportMaintenanceError(phase, error) {
-    try { onMaintenanceError({ phase, error }); } catch { /* maintenance reporting cannot change commit semantics */ }
+    const errorCode = typeof error?.code === "string" && /^[A-Z0-9_]{2,40}$/.test(error.code) ? error.code : "MAINTENANCE_FAILED";
+    try { onMaintenanceError({ event: "blogger_maintenance_error", phase, errorCode }); } catch { /* maintenance reporting cannot change commit semantics */ }
   }
   async function transact(operation) {
     fs.rmSync(transaction, { recursive: true, force: true });
@@ -169,7 +194,9 @@ export function createBlogContentStore({
       result = await operation();
       journal({ phase: "building", releaseId, previousTarget });
       await build({ releaseRoot, releaseId });
-      if (!fs.existsSync(releaseRoot)) throw new Error("Build did not create its release directory");
+      const releaseStat = fs.lstatSync(assertNoSymlinkPath(projectRoot, releaseRoot, "Release root"));
+      if (!releaseStat.isDirectory() || releaseStat.isSymbolicLink()) throw new Error("Build did not create a regular release directory");
+      validateRegularTree(releaseRoot);
       journal({ phase: "release_ready", releaseId, previousTarget });
       activateRelease(output, releaseTarget);
     } catch (error) {
@@ -201,11 +228,12 @@ export function createBlogContentStore({
 
   return {
     async list() {
-      return fs.readdirSync(sources, { withFileTypes: true }).filter((entry) => entry.isFile() && entry.name.endsWith(".json"))
+      return mutate("read", async () => fs.readdirSync(sources, { withFileTypes: true }).filter((entry) => entry.isFile() && entry.name.endsWith(".json"))
         .map((entry) => editorPost(read(entry.name.slice(0, -5)), media))
-        .sort((a, b) => b.meta.date.localeCompare(a.meta.date) || a.slug.localeCompare(b.slug));
+        .sort((a, b) => b.meta.date.localeCompare(a.meta.date) || a.slug.localeCompare(b.slug)));
     },
-    async get(slug) { return editorPost(read(slug), media); },
+    async get(slug) { return mutate("read", async () => editorPost(read(slug), media)); },
+    async recover() { return mutate("recover", async () => false); },
     create(input) {
       return mutate("create", async () => {
         const post = normalizePost(input);
@@ -237,12 +265,13 @@ export function createBlogContentStore({
     publish(slug) { return statusChange(slug, "published"); },
     unpublish(slug) { return statusChange(slug, "draft"); },
     rebuild() { return mutate("build", () => transact(async () => undefined)); },
-    saveImage(slug, { filename, bytes }) {
+    saveImage(slug, { filename, bytes, declaredMime }) {
       return mediaMutation("image", slug, async () => {
         if (typeof filename !== "string" || !IMAGE_PATTERN.test(filename)) throw new Error("Invalid image filename");
         if (!Buffer.isBuffer(bytes) || bytes.length === 0 || bytes.length > maxMediaBytes) throw new Error("Image is empty or too large");
-        const directory = assertInside(media, path.join(media, slug), "Image directory");
-        const file = assertInside(directory, path.join(directory, filename), "Image file");
+        validateImage({ filename, bytes, declaredMime });
+        const directory = assertNoSymlinkPath(media, path.join(media, slug), "Image directory");
+        const file = assertNoSymlinkPath(directory, path.join(directory, filename), "Image file");
         fs.mkdirSync(directory, { recursive: true });
         const temporary = `${file}.${randomBytes(6).toString("hex")}.tmp`;
         fs.writeFileSync(temporary, bytes, { mode: 0o600 }); fs.renameSync(temporary, file);
@@ -252,11 +281,11 @@ export function createBlogContentStore({
     updateImage(slug, filename, input) {
       return mediaMutation("image-metadata", slug, async () => {
         if (!IMAGE_PATTERN.test(filename)) throw new Error("Invalid image filename");
-        const directory = assertInside(media, path.join(media, slug), "Image directory");
-        const file = assertInside(directory, path.join(directory, filename), "Image file");
+        const directory = assertNoSymlinkPath(media, path.join(media, slug), "Image directory");
+        const file = assertNoSymlinkPath(directory, path.join(directory, filename), "Image file");
         if (!fs.existsSync(file)) throw new Error("Image not found");
         if (typeof input?.alt !== "string" || typeof input?.description !== "string" || typeof input?.isFeatured !== "boolean" || input.alt.length > 300 || input.description.length > 1_000) throw new Error("Invalid image metadata");
-        const metadataFile = path.join(directory, ".metadata.json");
+        const metadataFile = assertNoSymlinkPath(directory, path.join(directory, ".metadata.json"), "Image metadata");
         let metadata = fs.existsSync(metadataFile) ? JSON.parse(fs.readFileSync(metadataFile, "utf8")) : {};
         if (input.isFeatured) for (const item of Object.values(metadata)) item.isFeatured = false;
         metadata[filename] = { alt: input.alt, description: input.description, isFeatured: input.isFeatured };
@@ -267,11 +296,11 @@ export function createBlogContentStore({
     deleteImage(slug, filename) {
       return mediaMutation("image-delete", slug, async () => {
         if (!IMAGE_PATTERN.test(filename)) throw new Error("Invalid image filename");
-        const directory = assertInside(media, path.join(media, slug), "Image directory");
-        const file = assertInside(directory, path.join(directory, filename), "Image file");
+        const directory = assertNoSymlinkPath(media, path.join(media, slug), "Image directory");
+        const file = assertNoSymlinkPath(directory, path.join(directory, filename), "Image file");
         if (!fs.existsSync(file)) throw new Error("Image not found");
         fs.rmSync(file);
-        const metadataFile = path.join(directory, ".metadata.json");
+        const metadataFile = assertNoSymlinkPath(directory, path.join(directory, ".metadata.json"), "Image metadata");
         if (fs.existsSync(metadataFile)) {
           const metadata = JSON.parse(fs.readFileSync(metadataFile, "utf8")); delete metadata[filename];
           if (Object.keys(metadata).length) atomicJson(metadataFile, metadata); else fs.rmSync(metadataFile);

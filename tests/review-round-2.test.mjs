@@ -37,10 +37,11 @@ function post() {
 
 test("old-release cleanup failure after activation cannot roll back or erase committed source", async () => {
   const paths = fixture("sportmassage-round2-cleanup-");
-  const oldRelease = path.join(paths.outputRoot, "releases/old");
+  const oldId = "1700000000000-aaaaaaaaaaaaaaaa";
+  const oldRelease = path.join(paths.outputRoot, "releases", oldId);
   fs.mkdirSync(oldRelease, { recursive: true });
   fs.writeFileSync(path.join(oldRelease, "index.html"), "old release\n");
-  fs.symlinkSync("releases/old", path.join(paths.outputRoot, "current"));
+  fs.symlinkSync(`releases/${oldId}`, path.join(paths.outputRoot, "current"));
   const maintenanceErrors = [];
   const store = createBlogContentStore({
     ...paths,
@@ -48,7 +49,7 @@ test("old-release cleanup failure after activation cannot roll back or erase com
       fs.mkdirSync(releaseRoot, { recursive: true });
       fs.writeFileSync(path.join(releaseRoot, "index.html"), "new release\n");
     },
-    removeRelease: () => { throw new Error("cleanup denied"); },
+    removeRelease: () => { const error = new Error("cleanup denied at /private/secret"); error.code = "EACCES"; throw error; },
     onMaintenanceError: (entry) => maintenanceErrors.push(entry),
   });
 
@@ -57,12 +58,12 @@ test("old-release cleanup failure after activation cannot roll back or erase com
   assert.equal(created.meta.status, "published");
   assert.equal(JSON.parse(fs.readFileSync(path.join(paths.contentRoot, "committed-post.json"), "utf8")).status, "published");
   assert.equal(fs.readFileSync(path.join(paths.outputRoot, "current/index.html"), "utf8"), "new release\n");
-  assert.notEqual(fs.readlinkSync(path.join(paths.outputRoot, "current")), "releases/old");
+  assert.notEqual(fs.readlinkSync(path.join(paths.outputRoot, "current")), `releases/${oldId}`);
   assert.equal(fs.existsSync(paths.transactionRoot), false);
   assert.equal(fs.existsSync(oldRelease), true);
   assert.equal(maintenanceErrors.length, 1);
-  assert.equal(maintenanceErrors[0].phase, "release_cleanup");
-  assert.match(maintenanceErrors[0].error.message, /cleanup denied/);
+  assert.deepEqual(maintenanceErrors[0], { event: "blogger_maintenance_error", phase: "release_cleanup", errorCode: "EACCES" });
+  assert.doesNotMatch(JSON.stringify(maintenanceErrors[0]), /private|cleanup denied|stack/i);
 });
 
 test("deployment bootstrap command creates the versioned release and current pointer served by Nginx", () => {
@@ -71,6 +72,8 @@ test("deployment bootstrap command creates the versioned release and current poi
   fs.writeFileSync(path.join(paths.root, "index.html"), "<html><head></head><body>home</body></html>");
   fs.writeFileSync(path.join(paths.root, "legal.html"), "<html><head></head><body>legal</body></html>");
   fs.writeFileSync(path.join(paths.root, "propuesta/demo/index.html"), "<html><head></head><body>proposal</body></html>");
+  fs.mkdirSync(path.join(paths.root, "deploy"), { recursive: true });
+  fs.writeFileSync(path.join(paths.root, "deploy/public-manifest.json"), JSON.stringify({ files: ["index.html", "legal.html", "propuesta/demo/index.html"] }));
 
   const result = spawnSync("npm", ["run", "build:site", "--silent"], {
     cwd: path.resolve(import.meta.dirname, ".."),
@@ -93,4 +96,6 @@ test("deployment bootstrap command creates the versioned release and current poi
   assert.equal(fs.readFileSync(path.join(paths.outputRoot, "current/index.html"), "utf8"), "<html><head></head><body>home</body></html>");
   assert.equal(fs.existsSync(path.join(paths.outputRoot, "current/blog/index.html")), true);
   assert.equal(fs.existsSync(path.join(paths.root, "blog/index.html")), false);
+  assert.equal(fs.statSync(path.join(paths.outputRoot, "current")).mode & 0o777, 0o750);
+  assert.equal(fs.statSync(path.join(paths.outputRoot, "current/index.html")).mode & 0o777, 0o640);
 });

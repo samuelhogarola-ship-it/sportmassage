@@ -7,6 +7,7 @@ import test from "node:test";
 const content = await import("../scripts/blog-content-store.mjs").catch(
   () => ({}),
 );
+const onePixelPng = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=", "base64");
 
 function fixture() {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "sportmassage-store-"));
@@ -15,9 +16,10 @@ function fixture() {
   const outputRoot = path.join(root, ".state/public");
   fs.mkdirSync(contentRoot, { recursive: true });
   fs.mkdirSync(mediaRoot, { recursive: true });
-  fs.mkdirSync(path.join(outputRoot, "releases/stable"), { recursive: true });
-  fs.writeFileSync(path.join(outputRoot, "releases/stable/index.html"), "stable\n");
-  fs.symlinkSync("releases/stable", path.join(outputRoot, "current"));
+  const stable = "1700000000000-aaaaaaaaaaaaaaaa";
+  fs.mkdirSync(path.join(outputRoot, "releases", stable), { recursive: true });
+  fs.writeFileSync(path.join(outputRoot, "releases", stable, "index.html"), "stable\n");
+  fs.symlinkSync(`releases/${stable}`, path.join(outputRoot, "current"));
   return { root, contentRoot, mediaRoot, outputRoot };
 }
 
@@ -70,20 +72,20 @@ test("media accepts confined web images and enforces byte limits", async () => {
   const paths = fixture();
   const store = content.createBlogContentStore({
     ...paths,
-    maxMediaBytes: 8,
+    maxMediaBytes: 100,
     build: async () => {},
   });
   await store.create(post());
   const saved = await store.saveImage(post().slug, {
-    filename: "cover.webp",
-    bytes: Buffer.from("12345678"),
+    filename: "cover.png",
+    bytes: onePixelPng,
   });
-  assert.equal(saved.file, "cover.webp");
+  assert.equal(saved.file, "cover.png");
   await assert.rejects(
     () =>
       store.saveImage(post().slug, {
         filename: "large.webp",
-        bytes: Buffer.from("123456789"),
+        bytes: Buffer.alloc(101),
       }),
     /large/i,
   );

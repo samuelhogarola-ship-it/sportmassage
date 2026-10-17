@@ -1,4 +1,9 @@
 location = /admin/blogger/login {
+    add_header Content-Security-Policy "default-src 'none'; frame-ancestors 'none'" always;
+    add_header X-Frame-Options "DENY" always;
+    add_header X-Content-Type-Options "nosniff" always;
+    add_header Referrer-Policy "no-referrer" always;
+    add_header Cache-Control "no-store" always;
     proxy_pass http://127.0.0.1:8787;
     proxy_set_header Host $host;
     proxy_set_header X-Real-IP $remote_addr;
@@ -6,6 +11,11 @@ location = /admin/blogger/login {
 }
 
 location = /admin/blogger/launch {
+    add_header Content-Security-Policy "default-src 'none'; frame-ancestors 'none'" always;
+    add_header X-Frame-Options "DENY" always;
+    add_header X-Content-Type-Options "nosniff" always;
+    add_header Referrer-Policy "no-referrer" always;
+    add_header Cache-Control "no-store" always;
     proxy_pass http://127.0.0.1:8787;
     proxy_set_header Host $host;
     proxy_set_header X-Real-IP $remote_addr;
@@ -13,6 +23,11 @@ location = /admin/blogger/launch {
 }
 
 location /admin/blogger/ {
+    add_header Content-Security-Policy "default-src 'self'; img-src 'self' data:; style-src 'self'; script-src 'self'; connect-src 'self'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'; object-src 'none'" always;
+    add_header X-Frame-Options "DENY" always;
+    add_header X-Content-Type-Options "nosniff" always;
+    add_header Referrer-Policy "no-referrer" always;
+    add_header Cache-Control "no-store" always;
     root /srv/sportmassage/current;
     try_files $uri $uri/ =404;
 }

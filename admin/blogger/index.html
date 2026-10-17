@@ -183,7 +183,7 @@
               id="inlineImageUpload"
               class="visually-hidden"
               type="file"
-              accept="image/*"
+              accept="image/png,image/jpeg,image/webp,image/gif"
             />
             <div
               id="selectionToolbar"
@@ -236,7 +236,7 @@
               <strong>Imagenes</strong>
               <label class="file-button">
                 Subir
-                <input id="imageUpload" type="file" accept="image/*" multiple />
+                <input id="imageUpload" type="file" accept="image/png,image/jpeg,image/webp,image/gif" multiple />
               </label>
             </div>
             <div id="imageList" class="image-list"></div>
@@ -268,7 +268,7 @@
         </section>
       </section>
     </main>
-    <script id="bloggerConfig" type="application/json">{"siteName":"Sport Massage Fuengirola","defaultAuthor":"Sport Massage Fuengirola","defaultLanguage":"es","apiBase":"/api/posts","publicPostBase":"/blog/","authModule":"./blogger-auth.js"}</script>
+    <meta id="bloggerConfig" name="blogger-config" content='{"siteName":"Sport Massage Fuengirola","defaultAuthor":"Sport Massage Fuengirola","defaultLanguage":"es","apiBase":"/api/posts","publicPostBase":"/blog/","authModule":"./blogger-auth.js"}'>
     <script type="module" src="./app.js"></script>
   </body>
 </html>

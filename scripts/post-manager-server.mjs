@@ -17,7 +17,7 @@ import { createStaticReleaseBuildRunner } from "./blog-build-runner.mjs";
 
 export const HANDOFF_PROTOCOL = "wf-blogger-handoff/v1";
 export const BLOGGER_AUDIENCE = "sportmassagefuengirola";
-const COOKIE_NAME = "sportmassage_blogger_session";
+const COOKIE_NAME = "__Host-sportmassage_blogger_session";
 const CODE_PATTERN = /^[A-Za-z0-9_-]{43}$/;
 const MAX_LOGIN_BODY = 8 * 1024;
 const MAX_HANDOFF_BODY = 4 * 1024;
@@ -209,11 +209,11 @@ function clientKey(request) {
 
 function decodeDataUrl(value) {
   if (typeof value !== "string") throw new RequestError(400, "invalid_image");
-  const match = value.match(/^data:image\/(?:avif|jpeg|png|webp);base64,([A-Za-z0-9+/]*={0,2})$/i);
+  const match = value.match(/^data:(image\/(?:gif|jpeg|png|webp));base64,([A-Za-z0-9+/]*={0,2})$/i);
   if (!match) throw new RequestError(400, "invalid_image");
-  const bytes = Buffer.from(match[1], "base64");
+  const bytes = Buffer.from(match[2], "base64");
   if (!bytes.length || bytes.length > MAX_MEDIA_BYTES) throw new RequestError(413, "image_too_large");
-  return bytes;
+  return { bytes, declaredMime: match[1].toLowerCase() };
 }
 
 function publicCapabilities() {
@@ -231,6 +231,10 @@ export function createPostManagerServer({
   build,
   maxSessions = 256,
   maxRateLimitEntries = 1_024,
+  handoffPerIpLimit = 5,
+  handoffGlobalLimit = 50,
+  maxConcurrentHandoffs = 4,
+  maxHandoffResponseBytes = 16 * 1024,
 } = {}) {
   const config = readConfiguration(projectRoot, env);
   const sessions = createSessionStore({
@@ -242,6 +246,10 @@ export function createPostManagerServer({
     maxEntries: maxRateLimitEntries,
     limit: config.loginAttempts,
   });
+  const handoffIpLimiter = createRateLimiter({ maxEntries: maxRateLimitEntries, limit: handoffPerIpLimit });
+  const handoffGlobalLimiter = createRateLimiter({ maxEntries: 1, limit: handoffGlobalLimit });
+  if (![maxConcurrentHandoffs, maxHandoffResponseBytes].every((value) => Number.isInteger(value) && value > 0)) throw new Error("Handoff limits are invalid");
+  let activeHandoffs = 0;
   const audit = createAuditLogger(config.stateDirectory);
   const buildBlog = build ?? createStaticReleaseBuildRunner({
     root: config.root,
@@ -256,6 +264,7 @@ export function createPostManagerServer({
     mediaRoot: config.mediaRoot,
     outputRoot: config.outputRoot,
     transactionRoot: path.join(config.stateDirectory, "transaction"),
+    lockDirectory: path.join(config.stateDirectory, "writer.lock"),
     build: buildBlog,
   });
 
@@ -276,14 +285,49 @@ export function createPostManagerServer({
     json(response, 200, { authenticated: true }, { "Set-Cookie": sessionCookie(token, Math.floor(config.sessionTtlMs / 1_000)) });
   }
 
+  function readiness() {
+    function directory(directory) {
+      try {
+        const stat = fs.lstatSync(directory);
+        return { readable: stat.isDirectory() && !stat.isSymbolicLink() && Boolean(stat.mode & 0o444), writable: stat.isDirectory() && !stat.isSymbolicLink() && Boolean(stat.mode & 0o222) };
+      } catch { return { readable: false, writable: false }; }
+    }
+    let activeRelease = false;
+    try {
+      const current = path.join(config.outputRoot, "current"); const target = fs.readlinkSync(current);
+      if (/^releases\/\d{13}-[0-9a-f]{16}$/.test(target)) {
+        const index = path.join(config.outputRoot, target, "index.html"); const stat = fs.lstatSync(index);
+        activeRelease = stat.isFile() && !stat.isSymbolicLink() && Boolean(stat.mode & 0o444);
+      }
+    } catch { activeRelease = false; }
+    const content = directory(config.contentRoot); const state = directory(config.stateDirectory);
+    const recoveryResolved = !fs.existsSync(path.join(config.stateDirectory, "transaction/journal.json"));
+    const checks = { activeRelease, contentReadable: content.readable, contentWritable: content.writable, stateReadable: state.readable, stateWritable: state.writable, recoveryResolved };
+    return { ready: Object.values(checks).every(Boolean), checks };
+  }
+
+  async function boundedResponseJson(response) {
+    const declared = response.headers.get("content-length");
+    if (declared && Number(declared) > maxHandoffResponseBytes) throw new Error("exchange_response_invalid");
+    const chunks = []; let length = 0;
+    for await (const chunk of response.body ?? []) {
+      length += chunk.length; if (length > maxHandoffResponseBytes) throw new Error("exchange_response_invalid"); chunks.push(Buffer.from(chunk));
+    }
+    return JSON.parse(new TextDecoder("utf8", { fatal: true }).decode(Buffer.concat(chunks)));
+  }
+
   return http.createServer(async (request, response) => {
     try {
       const url = new URL(request.url, config.publicOrigin);
       const method = request.method ?? "GET";
 
-      if (method === "GET" && ["/api/blogger/health", "/.well-known/wf-blogger.json"].includes(url.pathname)) {
+      if (method === "GET" && url.pathname === "/.well-known/wf-blogger.json") {
         json(response, 200, publicCapabilities());
         return;
+      }
+      if (method === "GET" && url.pathname === "/api/blogger/health") {
+        try { await store.recover(); } catch { /* readiness reports unresolved recovery without details */ }
+        const status = readiness(); json(response, status.ready ? 200 : 503, status); return;
       }
 
       if (method === "POST" && url.pathname === "/admin/blogger/login") {
@@ -310,19 +354,23 @@ export function createPostManagerServer({
 
       if (method === "POST" && url.pathname === "/admin/blogger/launch") {
         requireOrigin(request, config.mutationOrigin);
+        if (activeHandoffs >= maxConcurrentHandoffs) { json(response, 429, { error: "launch_unavailable" }); return; }
+        const ipAttempt = handoffIpLimiter.consume(clientKey(request));
+        if (!ipAttempt.allowed) { json(response, 429, { error: "launch_unavailable" }); return; }
+        const globalAttempt = handoffGlobalLimiter.consume("global");
+        if (!globalAttempt.allowed) { json(response, 429, { error: "launch_unavailable" }); return; }
         const body = await readJson(request, MAX_HANDOFF_BODY);
         if (!CODE_PATTERN.test(body.code ?? "")) throw new RequestError(400, "invalid_launch_code");
-        const exchange = await fetchImpl(config.exchangeUrl, {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${config.handoffSecret}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({ code: body.code, audience: BLOGGER_AUDIENCE }),
-          signal: AbortSignal.timeout(8_000),
-        });
-        if (!exchange.ok) throw new RequestError(401, "invalid_or_expired_ticket");
-        const ticket = await exchange.json();
+        let exchange; let ticket; activeHandoffs += 1;
+        try {
+          exchange = await fetchImpl(config.exchangeUrl, {
+            method: "POST", headers: { Authorization: `Bearer ${config.handoffSecret}`, "Content-Type": "application/json" },
+            body: JSON.stringify({ code: body.code, audience: BLOGGER_AUDIENCE }), signal: AbortSignal.timeout(8_000),
+          });
+          if (!exchange.ok) throw new Error("exchange_rejected");
+          ticket = await boundedResponseJson(exchange);
+        } catch { throw new RequestError(401, "invalid_or_expired_ticket"); }
+        finally { activeHandoffs -= 1; }
         if (
           ticket.protocol !== HANDOFF_PROTOCOL ||
           ticket.audience !== BLOGGER_AUDIENCE ||
@@ -356,7 +404,7 @@ export function createPostManagerServer({
       }
 
       const postMatch = url.pathname.match(/^\/api\/posts\/([a-z0-9]+(?:-[a-z0-9]+)*)(?:\/(publish|unpublish|images))?$/);
-      const imageMatch = url.pathname.match(/^\/api\/posts\/([a-z0-9]+(?:-[a-z0-9]+)*)\/images\/([A-Za-z0-9][A-Za-z0-9._-]{0,99}\.(?:avif|jpe?g|png|webp))$/i);
+      const imageMatch = url.pathname.match(/^\/api\/posts\/([a-z0-9]+(?:-[a-z0-9]+)*)\/images\/([A-Za-z0-9][A-Za-z0-9._-]{0,99}\.(?:gif|jpe?g|png|webp))$/i);
       if (url.pathname === "/api/posts" && method === "GET") {
         requireSession(request);
         json(response, 200, { posts: await store.list() });
@@ -404,9 +452,10 @@ export function createPostManagerServer({
         requireSession(request);
         requireOrigin(request, config.mutationOrigin);
         const body = await readJson(request, MAX_MEDIA_BODY);
+        const imageData = decodeDataUrl(body.data);
         const image = await store.saveImage(postMatch[1], {
           filename: body.fileName,
-          bytes: decodeDataUrl(body.data),
+          ...imageData,
         });
         json(response, 201, image);
         return;
@@ -436,7 +485,7 @@ export function createPostManagerServer({
 
       json(response, 404, { error: "not_found" });
     } catch (error) {
-      const status = error instanceof RequestError ? error.status : /not found/i.test(error.message) ? 404 : /already exists/i.test(error.message) ? 409 : /invalid|required|large|escape/i.test(error.message) ? 400 : 500;
+      const status = error instanceof RequestError ? error.status : /not found/i.test(error.message) ? 404 : /already exists/i.test(error.message) ? 409 : /invalid|required|large|escape|image|MIME|malformed|unsupported|dimension/i.test(error.message) ? 400 : 500;
       json(response, status, { error: error instanceof RequestError ? error.code : status === 500 ? "internal_error" : "invalid_request" });
     }
   });

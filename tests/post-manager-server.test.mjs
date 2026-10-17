@@ -10,6 +10,8 @@ const serverModule = await import("../scripts/post-manager-server.mjs").catch(
 const auth = await import("../scripts/blogger-launch-session.mjs").catch(
   () => ({}),
 );
+const editorSchema = await import("../admin/blogger/editor-schema.js").catch(() => ({}));
+const generator = await import("../scripts/generate-blog.mjs").catch(() => ({}));
 
 const password = "Massage-Blogger-Only-2026!";
 
@@ -49,6 +51,10 @@ async function listen(overrides = {}) {
     build: overrides.build ?? (async () => {}),
     maxSessions: overrides.maxSessions ?? 3,
     maxRateLimitEntries: overrides.maxRateLimitEntries ?? 3,
+    handoffPerIpLimit: overrides.handoffPerIpLimit,
+    handoffGlobalLimit: overrides.handoffGlobalLimit,
+    maxConcurrentHandoffs: overrides.maxConcurrentHandoffs,
+    maxHandoffResponseBytes: overrides.maxHandoffResponseBytes,
   });
   await new Promise((resolve, reject) => {
     server.once("error", reject);
@@ -87,7 +93,7 @@ test("direct credentials grant Blogger scope only and audit direct origin", asyn
   t.after(app.close);
   const response = await login(app);
   assert.equal(response.status, 200, await response.clone().text());
-  assert.match(response.headers.get("set-cookie") ?? "", /HttpOnly; Secure; SameSite=Strict/);
+  assert.match(response.headers.get("set-cookie") ?? "", /^__Host-sportmassage_blogger_session=.*HttpOnly; Secure; SameSite=Strict/);
   const session = await fetch(`${app.url}/api/admin/session`, {
     headers: { cookie: cookie(response) },
   });
@@ -216,24 +222,72 @@ test("anonymous clients cannot mutate posts, media or builds", async (t) => {
   }
 });
 
-test("health and discovery are secret-free and fail closed", async (t) => {
+test("discovery stays public while readiness is redacted and fails closed until an active writable release exists", async (t) => {
   const app = await listen();
   t.after(app.close);
-  for (const route of ["/api/blogger/health", "/.well-known/wf-blogger.json"]) {
-    const response = await fetch(`${app.url}${route}`);
-    assert.equal(response.status, 200);
-    const body = await response.json();
-    assert.equal(body.audience, "sportmassagefuengirola");
-    assert.deepEqual(body.capabilities, ["posts", "media", "publish", "unpublish"]);
+  const discovery = await fetch(`${app.url}/.well-known/wf-blogger.json`);
+  assert.equal(discovery.status, 200);
+  assert.deepEqual((await discovery.json()).capabilities, ["posts", "media", "publish", "unpublish"]);
+  const unavailable = await fetch(`${app.url}/api/blogger/health`);
+  assert.equal(unavailable.status, 503);
+  const unavailableBody = await unavailable.json();
+  assert.equal(unavailableBody.ready, false); assert.equal(unavailableBody.checks.activeRelease, false);
+  fs.mkdirSync(path.join(app.root, ".blogger-state/public/releases/1700000000000-0123456789abcdef"), { recursive: true, mode: 0o750 });
+  fs.writeFileSync(path.join(app.root, ".blogger-state/public/releases/1700000000000-0123456789abcdef/index.html"), "ready", { mode: 0o640 });
+  fs.symlinkSync("releases/1700000000000-0123456789abcdef", path.join(app.root, ".blogger-state/public/current"));
+  const ready = await fetch(`${app.url}/api/blogger/health`);
+  assert.equal(ready.status, 200); assert.equal((await ready.json()).ready, true);
+  fs.chmodSync(path.join(app.root, "content/blog"), 0o500);
+  const unwritable = await fetch(`${app.url}/api/blogger/health`);
+  assert.equal(unwritable.status, 503); assert.equal((await unwritable.json()).checks.contentWritable, false);
+  fs.chmodSync(path.join(app.root, "content/blog"), 0o750);
+  fs.mkdirSync(path.join(app.root, ".blogger-state/transaction"), { recursive: true });
+  fs.writeFileSync(path.join(app.root, ".blogger-state/transaction/journal.json"), "{}");
+  const unresolved = await fetch(`${app.url}/api/blogger/health`);
+  assert.equal(unresolved.status, 503); assert.equal((await unresolved.json()).checks.recoveryResolved, false);
+  fs.rmSync(path.join(app.root, ".blogger-state/transaction"), { recursive: true, force: true });
+  for (const body of [unavailableBody, await (await fetch(`${app.url}/api/blogger/health`)).json()]) {
     const encoded = JSON.stringify(body);
-    for (const secret of ["session_", "handoff_", "sofia-blogger", app.root, "websiteId"]) {
-      assert.equal(encoded.includes(secret), false);
-    }
+    for (const secret of ["session_", "handoff_", "sofia-blogger", app.root, "websiteId", "content/blog"]) assert.equal(encoded.includes(secret), false);
   }
   assert.throws(
     () => serverModule.createPostManagerServer({ projectRoot: fixture(), env: {} }),
     /configuration|missing/i,
   );
+});
+
+test("Studio launch exchange is bounded by per-IP, global and concurrency limits with generic failures", async (t) => {
+  let release;
+  let exchanges = 0;
+  const pending = new Promise((resolve) => { release = resolve; });
+  const app = await listen({
+    handoffPerIpLimit: 2, handoffGlobalLimit: 2, maxConcurrentHandoffs: 1, maxHandoffResponseBytes: 128,
+    fetchImpl: async () => { exchanges += 1; if (exchanges === 1) await pending; return Response.json({ protocol: "wf-blogger-handoff/v1", audience: "sportmassagefuengirola", subject: { role: "client" } }); },
+  });
+  t.after(app.close);
+  const launch = (ip = "203.0.113.20") => fetch(`${app.url}/admin/blogger/launch`, { method:"POST", headers:{ "content-type":"application/json", origin:"http://127.0.0.1", "x-real-ip":ip }, body:JSON.stringify({ code:"A".repeat(43) }) });
+  const first = launch(); await new Promise((resolve) => setTimeout(resolve, 30));
+  const concurrent = await launch("203.0.113.21");
+  release(); const firstResponse = await first;
+  assert.equal(concurrent.status, 429); assert.deepEqual(await concurrent.json(), { error:"launch_unavailable" });
+  assert.equal(firstResponse.status, 200);
+
+  const oversized = await listen({ maxHandoffResponseBytes: 64, fetchImpl: async () => new Response(JSON.stringify({ padding:"x".repeat(500) }), { status:200, headers:{ "content-type":"application/json" } }) });
+  t.after(oversized.close);
+  const failed = await fetch(`${oversized.url}/admin/blogger/launch`, { method:"POST", headers:{ "content-type":"application/json", origin:"http://127.0.0.1" }, body:JSON.stringify({ code:"B".repeat(43) }) });
+  assert.equal(failed.status, 401); assert.deepEqual(await failed.json(), { error:"invalid_or_expired_ticket" });
+});
+
+test("Studio launch rate limits are independently enforced per IP and globally", async (t) => {
+  const ticket = () => Response.json({ protocol:"wf-blogger-handoff/v1", audience:"sportmassagefuengirola", subject:{ role:"client" } });
+  const perIp = await listen({ handoffPerIpLimit:1, handoffGlobalLimit:10, fetchImpl:async()=>ticket() }); t.after(perIp.close);
+  const launch = (app, ip, code) => fetch(`${app.url}/admin/blogger/launch`, { method:"POST", headers:{ "content-type":"application/json", origin:"http://127.0.0.1", "x-real-ip":ip }, body:JSON.stringify({ code:code.repeat(43) }) });
+  assert.equal((await launch(perIp, "203.0.113.30", "A")).status, 200);
+  assert.equal((await launch(perIp, "203.0.113.30", "B")).status, 429);
+  assert.equal((await launch(perIp, "203.0.113.31", "C")).status, 200);
+  const global = await listen({ handoffPerIpLimit:10, handoffGlobalLimit:1, fetchImpl:async()=>ticket() }); t.after(global.close);
+  assert.equal((await launch(global, "203.0.113.40", "D")).status, 200);
+  const blocked = await launch(global, "203.0.113.41", "E"); assert.equal(blocked.status, 429); assert.deepEqual(await blocked.json(), { error:"launch_unavailable" });
 });
 
 test("relative state, content, media and output paths resolve inside the project root", async (t) => {
@@ -297,12 +351,22 @@ test("authenticated media upload, metadata update and deletion match the editor 
     }),
   });
   assert.equal(created.status, 201, await created.clone().text());
+  const malformed = await fetch(`${app.url}/api/posts/media-post/images`, {
+    method: "POST", headers,
+    body: JSON.stringify({ fileName: "fake.png", data: `data:image/png;base64,${Buffer.from("not-an-image").toString("base64")}` }),
+  });
+  assert.equal(malformed.status, 400); assert.deepEqual(await malformed.json(), { error: "invalid_request" });
+  const mismatch = await fetch(`${app.url}/api/posts/media-post/images`, {
+    method: "POST", headers,
+    body: JSON.stringify({ fileName: "wrong.jpg", data: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=" }),
+  });
+  assert.equal(mismatch.status, 400);
   const uploaded = await fetch(`${app.url}/api/posts/media-post/images`, {
     method: "POST",
     headers,
     body: JSON.stringify({
       fileName: "cover.png",
-      data: `data:image/png;base64,${Buffer.from("png-fixture").toString("base64")}`,
+      data: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=",
     }),
   });
   assert.equal(uploaded.status, 201, await uploaded.clone().text());
@@ -441,4 +505,75 @@ test("the retained build endpoint is serialized with publishing through the roll
   assert.equal(published.status, 200, await published.clone().text());
   assert.equal(rebuilt.status, 200, await rebuilt.clone().text());
   assert.equal(maximum, 1);
+});
+
+test("real editor payload persists canonical Markdown and renders safe editor features through HTTP", async (t) => {
+  assert.equal(typeof editorSchema.normalizeEditorPostPayload, "function");
+  const root = fixture();
+  const app = await listen({
+    root,
+    build: ({ releaseRoot }) => generator.generateBlog({
+      root,
+      contentRoot: path.join(root, "content/blog"),
+      mediaRoot: path.join(root, "content/blog/media"),
+      outputRoot: path.join(releaseRoot, "blog"),
+    }),
+  });
+  t.after(app.close);
+  const loggedIn = await login(app);
+  const headers = { cookie: cookie(loggedIn), origin: "http://127.0.0.1", "content-type": "application/json" };
+  const rawEditorPayload = {
+    title: "Editor contract", slug: "editor-contract", description: "Rendered from the real editor schema.",
+    date: "2026-02-28", lang: "en", author: "Sport Massage in Fuengirola", status: "draft",
+    image: "", tags: " recovery, mobility, recovery , ", category: "Recovery", level: "",
+    content_format: "html",
+    body: "## Recovery\n\nA **strong** and *gentle* paragraph with [safe guidance](https://example.com/help).\n\n- First\n- Second\n\n![Inline recovery](/blog/media/editor-contract/cover.png)\n\n[unsafe](javascript:alert(1))",
+  };
+  const payload = editorSchema.normalizeEditorPostPayload(rawEditorPayload);
+  assert.deepEqual(payload.tags, ["recovery", "mobility"]);
+  assert.equal(payload.content_format, "markdown");
+  const created = await fetch(`${app.url}/api/posts`, { method: "POST", headers, body: JSON.stringify(payload) });
+  assert.equal(created.status, 201, await created.clone().text());
+
+  const onePixelPng = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=", "base64");
+  const uploaded = await fetch(`${app.url}/api/posts/editor-contract/images`, {
+    method: "POST", headers,
+    body: JSON.stringify({ fileName: "cover.png", data: `data:image/png;base64,${onePixelPng.toString("base64")}` }),
+  });
+  assert.equal(uploaded.status, 201, await uploaded.clone().text());
+  const metadata = await fetch(`${app.url}/api/posts/editor-contract/images/cover.png`, {
+    method: "PUT", headers,
+    body: JSON.stringify({ alt: "Featured recovery", description: "Treatment room", isFeatured: true }),
+  });
+  assert.equal(metadata.status, 200, await metadata.clone().text());
+  const published = await fetch(`${app.url}/api/posts/editor-contract`, {
+    method: "PUT", headers, body: JSON.stringify({ ...payload, status: "published" }),
+  });
+  assert.equal(published.status, 200, await published.clone().text());
+
+  const stored = JSON.parse(fs.readFileSync(path.join(root, "content/blog/editor-contract.json"), "utf8"));
+  assert.deepEqual(stored.tags, ["recovery", "mobility"]);
+  assert.equal(stored.content_format, "markdown");
+  const article = fs.readFileSync(path.join(root, ".blogger-state/public/current/blog/editor-contract/index.html"), "utf8");
+  assert.match(article, /<html lang="en">/);
+  assert.match(article, /<h2>Recovery<\/h2>/);
+  assert.match(article, /<strong>strong<\/strong>/);
+  assert.match(article, /<em>gentle<\/em>/);
+  assert.match(article, /<a href="https:\/\/example\.com\/help"/);
+  assert.match(article, /<ul>\s*<li>First<\/li>\s*<li>Second<\/li>\s*<\/ul>/);
+  assert.match(article, /class="featured-image"[\s\S]*alt="Featured recovery"[\s\S]*Treatment room/);
+  assert.match(article, /src="\/blog\/media\/editor-contract\/cover\.png" alt="Inline recovery"/);
+  assert.doesNotMatch(article, /href="javascript:|<script/i);
+});
+
+test("post schema rejects impossible calendar dates and unsupported HTML content", async (t) => {
+  const app = await listen();
+  t.after(app.close);
+  const loggedIn = await login(app);
+  const headers = { cookie: cookie(loggedIn), origin: "http://127.0.0.1", "content-type": "application/json" };
+  const base = { title: "Invalid schema", slug: "invalid-schema", description: "Invalid date and format coverage.", date: "2026-02-30", lang: "es", author: "Author", status: "draft", image: "", tags: ["one", "two"], category: "", level: "", content_format: "markdown", body: "Body" };
+  const invalidDate = await fetch(`${app.url}/api/posts`, { method: "POST", headers, body: JSON.stringify(base) });
+  assert.equal(invalidDate.status, 400);
+  const html = await fetch(`${app.url}/api/posts`, { method: "POST", headers, body: JSON.stringify({ ...base, slug: "unsafe-html", date: "2026-02-28", content_format: "html", body: "<script>alert(1)</script>" }) });
+  assert.equal(html.status, 400);
 });

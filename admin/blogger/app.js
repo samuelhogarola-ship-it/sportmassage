@@ -1,5 +1,8 @@
+import { normalizeEditorPostPayload } from "./editor-schema.js";
+
 export function loadBloggerRuntime() {
-  const raw = document.querySelector("#bloggerConfig")?.textContent || "{}";
+  const element = document.querySelector("#bloggerConfig");
+  const raw = element?.getAttribute("content") || element?.textContent || "{}";
   const input = JSON.parse(raw);
   return {
     siteName: input.siteName || "Blogger Studio",
@@ -102,10 +105,7 @@ postList.addEventListener("click", (event) => {
   if (confirmDiscardChanges()) loadPost(card.dataset.slug);
 });
 fields.body.addEventListener("input", () => {
-  visualEditor.innerHTML =
-    state.bodyFormat === "html"
-      ? fields.body.value
-      : markdownPreview(fields.body.value);
+  visualEditor.innerHTML = markdownPreview(fields.body.value);
   renderPreview();
   markDirty();
 });
@@ -157,10 +157,7 @@ for (const button of document.querySelectorAll(".toolbar [data-command]")) {
   button.addEventListener("click", () => {
     visualEditor.focus();
     document.execCommand(button.dataset.command);
-    fields.body.value =
-      state.bodyFormat === "html"
-        ? visualEditor.innerHTML
-        : richHtmlToMarkdown(visualEditor.innerHTML);
+    fields.body.value = richHtmlToMarkdown(visualEditor.innerHTML);
     renderPreview();
     markDirty();
   });
@@ -265,19 +262,15 @@ function newPost() {
 
 function fillForm(post) {
   const meta = post.meta || {};
-  state.bodyFormat = post.format || meta.content_format || "markdown";
+  state.bodyFormat = "markdown";
   for (const key of Object.keys(fields)) {
     if (key === "body") fields.body.value = post.body || "";
     else if (key === "tags" && Array.isArray(meta.tags))
       fields.tags.value = meta.tags.join(", ");
     else fields[key].value = meta[key] || "";
   }
-  visualEditor.innerHTML =
-    state.bodyFormat === "html"
-      ? fields.body.value
-      : markdownPreview(fields.body.value);
-  document.querySelector('[data-view="markdown"]').textContent =
-    state.bodyFormat === "html" ? "Editar HTML" : "Editar Markdown";
+  visualEditor.innerHTML = markdownPreview(fields.body.value);
+  document.querySelector('[data-view="markdown"]').textContent = "Editar Markdown";
   currentTitle.textContent = fields.title.value || "Nuevo post";
   updatePublishedLink(meta.slug || post.slug, Boolean(post.isPublished));
   state.slugEdited = Boolean(meta.slug || post.slug);
@@ -448,11 +441,8 @@ function renderImages(images) {
 }
 
 function readForm() {
-  fields.body.value =
-    state.bodyFormat === "html"
-      ? visualEditor.innerHTML
-      : richHtmlToMarkdown(visualEditor.innerHTML);
-  return {
+  fields.body.value = richHtmlToMarkdown(visualEditor.innerHTML);
+  return normalizeEditorPostPayload({
     title: fields.title.value,
     slug: fields.slug.value,
     description: fields.description.value,
@@ -464,9 +454,9 @@ function readForm() {
     category: fields.category.value,
     level: fields.level.value,
     status: fields.status.value,
-    content_format: state.bodyFormat,
+    content_format: "markdown",
     body: fields.body.value,
-  };
+  });
 }
 
 function applyFormat(button) {
@@ -484,10 +474,7 @@ function applyFormat(button) {
       const url = window.prompt("URL del enlace", "https://");
       if (url) document.execCommand("createLink", false, url);
     }
-    fields.body.value =
-      state.bodyFormat === "html"
-        ? visualEditor.innerHTML
-        : richHtmlToMarkdown(visualEditor.innerHTML);
+    fields.body.value = richHtmlToMarkdown(visualEditor.innerHTML);
     renderPreview();
     markDirty();
     return;
@@ -868,19 +855,13 @@ function handleImageDrop(event) {
 }
 
 function syncVisualEditor() {
-  fields.body.value =
-    state.bodyFormat === "html"
-      ? visualEditor.innerHTML
-      : richHtmlToMarkdown(visualEditor.innerHTML);
+  fields.body.value = richHtmlToMarkdown(visualEditor.innerHTML);
   renderPreview();
   markDirty();
 }
 
 function renderPreview() {
-  const html =
-    state.bodyFormat === "html"
-      ? fields.body.value
-      : markdownPreview(fields.body.value);
+  const html = markdownPreview(fields.body.value);
   if (!visualEditor.innerHTML || editorViews.visual.hidden)
     visualEditor.innerHTML = html;
   preview.innerHTML = html;
