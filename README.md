@@ -53,4 +53,4 @@ Revisa este proyecto, haz los cambios pedidos, comprueba los textos en todos los
 - `vendor/` contenía `legal-core.css` y `legal-core.js` como soporte de la página legal.
 - La versión actual de la web ya lleva ese contenido inline, así que `vendor/` no es obligatorio para que la home y `legal.html` funcionen.
 - Aun así, conviene revisar en cada redeploy que no queden referencias antiguas a `vendor/...` ni archivos sueltos mezclados en `public_html`.
-- El blog está separado de la web principal. Si `blog.sportmassagefuengirola.com` falla, revisar la carpeta raíz del subdominio en Hostinger; no depende de `public_html` tal como está ahora la web estática.
+- El blog HTML vive dentro de `blog/` y se publica junto con la web principal en `public_html`. Blogger Studio usa `/blog/` como base pública y genera cada artículo en `blog/<slug>/index.html`.
