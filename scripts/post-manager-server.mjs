@@ -224,6 +224,17 @@ function publicCapabilities() {
   };
 }
 
+export async function verifyDirectCredentials({
+  suppliedUsername,
+  suppliedPassword,
+  expectedUsername,
+  passwordHash,
+  passwordVerifier = verifyPassword,
+}) {
+  const passwordValid = await passwordVerifier(suppliedPassword, passwordHash);
+  return suppliedUsername === expectedUsername && passwordValid;
+}
+
 export function createPostManagerServer({
   projectRoot,
   env = process.env,
@@ -326,7 +337,6 @@ export function createPostManagerServer({
         return;
       }
       if (method === "GET" && url.pathname === "/api/blogger/health") {
-        try { await store.recover(); } catch { /* readiness reports unresolved recovery without details */ }
         const status = readiness(); json(response, status.ready ? 200 : 503, status); return;
       }
 
@@ -338,7 +348,12 @@ export function createPostManagerServer({
           return;
         }
         const body = await readJson(request, MAX_LOGIN_BODY);
-        const valid = body.username === config.username && await verifyPassword(body.password, config.passwordHash);
+        const valid = await verifyDirectCredentials({
+          suppliedUsername: body.username,
+          suppliedPassword: body.password,
+          expectedUsername: config.username,
+          passwordHash: config.passwordHash,
+        });
         if (!valid) {
           json(response, 401, { error: "authentication_failed" });
           return;

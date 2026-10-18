@@ -91,6 +91,13 @@ test("generated blog index preserves the approved bilingual design from main", a
   assert.match(index, /data-lang="en"/);
   assert.match(index, /data-i18n="title"/);
   assert.match(index, /localStorage\.setItem\('smf-lang', lang\)/);
+  for (const contract of [
+    ".intro { max-width: 650px; }",
+    ".empty { margin-top: 48px; }",
+  ]) {
+    assert.equal(index.includes(contract), true, contract);
+    assert.equal(fs.readFileSync(path.resolve(import.meta.dirname, "../blog/index.html"), "utf8").includes(contract), true, `committed ${contract}`);
+  }
 });
 
 test("Umami is injected only with a valid explicit website UUID", async () => {

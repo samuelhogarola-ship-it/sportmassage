@@ -88,6 +88,25 @@ async function login(app, body = {}) {
   });
 }
 
+test("wrong usernames still execute one password derivation", async () => {
+  assert.equal(typeof serverModule.verifyDirectCredentials, "function");
+  let derivations = 0;
+  const valid = await serverModule.verifyDirectCredentials({
+    suppliedUsername: "unknown-user",
+    suppliedPassword: "Wrong-Password-2026!",
+    expectedUsername: "sofia-blogger",
+    passwordHash: "encoded-password-hash",
+    passwordVerifier: async (password, encoded) => {
+      derivations += 1;
+      assert.equal(password, "Wrong-Password-2026!");
+      assert.equal(encoded, "encoded-password-hash");
+      return true;
+    },
+  });
+  assert.equal(valid, false);
+  assert.equal(derivations, 1);
+});
+
 test("direct credentials grant Blogger scope only and audit direct origin", async (t) => {
   const app = await listen();
   t.after(app.close);
@@ -254,6 +273,49 @@ test("discovery stays public while readiness is redacted and fails closed until 
     () => serverModule.createPostManagerServer({ projectRoot: fixture(), env: {} }),
     /configuration|missing/i,
   );
+});
+
+test("concurrent anonymous health reads do not queue behind or add store writes", async (t) => {
+  let releaseBuild;
+  let markBuildStarted;
+  let buildCount = 0;
+  const buildStarted = new Promise((resolve) => { markBuildStarted = resolve; });
+  const buildBlocked = new Promise((resolve) => { releaseBuild = resolve; });
+  const app = await listen({
+    build: async ({ releaseRoot }) => {
+      buildCount += 1;
+      fs.mkdirSync(releaseRoot, { recursive: true });
+      fs.writeFileSync(path.join(releaseRoot, "index.html"), "release\n");
+      markBuildStarted();
+      await buildBlocked;
+    },
+  });
+  t.after(app.close);
+  const loggedIn = await login(app);
+  const buildRequest = fetch(`${app.url}/api/build`, {
+    method: "POST",
+    headers: {
+      cookie: cookie(loggedIn),
+      origin: "http://127.0.0.1",
+      "content-type": "application/json",
+    },
+    body: "{}",
+  });
+  await buildStarted;
+  const healthRequests = Promise.all(Array.from({ length: 4 }, () => fetch(`${app.url}/api/blogger/health`)));
+  let watchdog;
+  const completedBeforeRelease = await Promise.race([
+    healthRequests.then(() => true),
+    new Promise((resolve) => { watchdog = setTimeout(() => resolve(false), 1_000); }),
+  ]);
+  clearTimeout(watchdog);
+  releaseBuild();
+  const healthResponses = await healthRequests;
+  const built = await buildRequest;
+  assert.equal(completedBeforeRelease, true);
+  assert.equal(buildCount, 1);
+  assert.equal(built.status, 200);
+  assert.deepEqual(healthResponses.map((response) => response.status), [503, 503, 503, 503]);
 });
 
 test("Studio launch exchange is bounded by per-IP, global and concurrency limits with generic failures", async (t) => {
