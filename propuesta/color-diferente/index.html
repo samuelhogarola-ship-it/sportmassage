@@ -392,12 +392,18 @@
       .cookie-banner-card { border-radius: 8px 8px 0 0; }
     }
     /* Proposal: same site architecture, refreshed sage and terracotta palette. */
-    :root { --navy:#304847; --navy-mid:#3f5d5a; --teal:#b96d52; --teal-light:#cf8568; --gold:#c79b68; --cream:#f7f3ed; }
+    :root { --navy:#172b31; --navy-mid:#223e43; --teal:#9d5a48; --teal-light:#bf7257; --gold:#c9a26d; --cream:#f3efe8; }
     .hero::before { background: radial-gradient(ellipse 60% 50% at 20% 80%, rgba(185,109,82,.24), transparent 70%), radial-gradient(ellipse 50% 60% at 80% 20%, rgba(199,155,104,.13), transparent 70%); }
-    .service-card { background: #fbf8f3; border-color: rgba(48,72,71,.14); }
-    .service-card:hover { background: rgba(185,109,82,.08); }
-    .service-card { padding-top: 138px; background-image: linear-gradient(180deg, rgba(251,248,243,0) 90px, #fbf8f3 138px), url('assets/hero-salon.png'); background-size: 100% 138px, 100% 118px; background-position: center top; background-repeat: no-repeat; }
-    .about-visual { background: linear-gradient(135deg, rgba(48,72,71,.92), rgba(185,109,82,.7)), url('assets/hero-salon.png') center/cover; }
+    .service-card { background: var(--navy-mid); border-color: rgba(255,255,255,.08); color: var(--white); transition: background .35s, color .35s; }
+    .service-card:hover { background: var(--cream); color: var(--text); }
+    .service-card:hover h3, .service-card:hover .service-desc, .service-card:hover .price-row, .service-card:hover .service-list li, .service-card:hover .single-price span { color: var(--text); }
+    .service-card:hover .price-row { border-color: rgba(48,72,71,.14); }
+    .service-card:hover .price, .service-card:hover .single-price { color: var(--teal); }
+    @media (hover: none) { .service-card:hover { background: var(--navy-mid); color: var(--white); } .service-card:hover h3, .service-card:hover .service-desc, .service-card:hover .price-row, .service-card:hover .service-list li, .service-card:hover .single-price span { color: inherit; } .service-card:hover .price-row { border-color: rgba(255,255,255,.07); } .service-card:hover .price, .service-card:hover .single-price { color: var(--gold); } }
+    .service-card { padding: 44px 40px; background-image: none; }
+    .service-icon { display: none !important; }
+    .price-table, .price-row, .single-price { opacity: 1 !important; visibility: visible !important; transform: none !important; }
+    .about-visual { background: linear-gradient(135deg, rgba(23,43,49,.22), rgba(23,43,49,.76)), url('assets/sofia-profile-real.png') center/cover; }
   </style>
 </head>
 <body>
