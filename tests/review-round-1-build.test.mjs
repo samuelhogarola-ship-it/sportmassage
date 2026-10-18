@@ -59,6 +59,48 @@ test("site releases inject Umami everywhere public only after explicit productio
   assert.equal(fs.existsSync(path.join(enabled, ".env")), false);
 });
 
+test("analytics activation rewrites every legacy disclosure in every tracked HTML file", async () => {
+  const root = temp("sportmassage-release-disclosures-");
+  fs.mkdirSync(path.join(root, "content/blog"), { recursive: true });
+  fs.mkdirSync(path.join(root, "propuesta/demo"), { recursive: true });
+  fs.mkdirSync(path.join(root, "deploy"), { recursive: true });
+  const longDisabled = [
+    "Actualmente no hay analítica activa ni cookies publicitarias. Si se activa Umami, medirá visitas agregadas y respetuosas con la privacidad sin cookies ni perfiles personales.",
+    "Analytics is currently disabled and no advertising cookies are used. If Umami is activated, it will measure aggregate, privacy-friendly visits without cookies or personal profiles.",
+    "Analytiikka ei ole tällä hetkellä käytössä eikä sivusto käytä mainosevästeitä. Jos Umami otetaan käyttöön, se mittaa koottuja käyntejä yksityisyyttä kunnioittaen ilman evästeitä tai henkilöprofiileja.",
+  ];
+  const shortDisabled = [
+    "La analítica está desactivada. Si se activa Umami, medirá visitas agregadas sin cookies ni perfiles personales.",
+    "Analytics is disabled. If Umami is activated, it will measure aggregate visits without cookies or personal profiles.",
+    "Analytiikka ei ole käytössä. Jos Umami otetaan käyttöön, se mittaa koottuja käyntejä ilman evästeitä tai henkilöprofiileja.",
+  ];
+  fs.writeFileSync(path.join(root, "index.html"), `<html><head></head><body>${shortDisabled.join("|")}</body></html>`);
+  fs.writeFileSync(path.join(root, "legal.html"), `<html><head></head><body>${longDisabled.concat(longDisabled).join("|")}</body></html>`);
+  fs.writeFileSync(path.join(root, "propuesta/demo/index.html"), `<html><head></head><body>${shortDisabled.join("|")}</body></html>`);
+  fs.writeFileSync(path.join(root, "deploy/public-manifest.json"), JSON.stringify({ files: ["index.html", "legal.html", "propuesta/demo/index.html"] }));
+
+  const releaseRoot = path.join(root, "release");
+  await siteRelease.generateSiteRelease({
+    root,
+    releaseRoot,
+    umamiWebsiteId: "123e4567-e89b-42d3-a456-426614174000",
+    umamiScriptUrl: "https://analytics.example/script.js",
+    umamiProductionVerified: true,
+  });
+
+  const html = ["index.html", "legal.html", "propuesta/demo/index.html"].map((relative) => fs.readFileSync(path.join(releaseRoot, relative), "utf8"));
+  for (const page of html) {
+    assert.match(page, /data-website-id=/);
+    for (const disclosure of [...longDisabled, ...shortDisabled]) assert.equal(page.includes(disclosure), false, disclosure);
+  }
+  const combined = html.join("\n");
+  for (const active of [
+    "Umami está activo y mide visitas agregadas",
+    "Umami analytics is active and measures aggregate visits",
+    "Umami-analytiikka on käytössä ja mittaa koottuja käyntejä",
+  ]) assert.match(combined, new RegExp(active));
+});
+
 test("the analytics activation gate fails closed for malformed production configuration", async () => {
   const root = temp("sportmassage-release-invalid-");
   fs.mkdirSync(path.join(root, "content/blog"), { recursive: true });

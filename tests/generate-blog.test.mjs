@@ -1,8 +1,10 @@
 import assert from "node:assert/strict";
+import { spawnSync } from "node:child_process";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import test from "node:test";
+import { pathToFileURL } from "node:url";
 
 const generator = await import("../scripts/generate-blog.mjs").catch(() => ({}));
 
@@ -78,6 +80,21 @@ test("generator output is byte-for-byte deterministic", async () => {
   for (const [file, expected] of first) {
     assert.equal(fs.readFileSync(path.join(paths.outputRoot, file), "utf8"), expected);
   }
+});
+
+test("Markdown normalizes every line separator and cannot stall on a heading boundary", () => {
+  const paths = fixture();
+  writePost(paths.contentRoot, { body: "## Heading\u2028After\r\nWindows\rClassic\u2029End" });
+  const moduleUrl = pathToFileURL(path.resolve(import.meta.dirname, "../scripts/generate-blog.mjs")).href;
+  const run = spawnSync(process.execPath, ["--input-type=module", "--eval", `import { generateBlog } from ${JSON.stringify(moduleUrl)}; await generateBlog(${JSON.stringify(paths)});`], {
+    encoding: "utf8",
+    timeout: 1_500,
+  });
+  assert.equal(run.status, 0, `${run.error?.code ?? ""}\n${run.stdout}\n${run.stderr}`);
+  const article = fs.readFileSync(path.join(paths.outputRoot, "recuperacion-segura/index.html"), "utf8");
+  assert.match(article, /<h2>Heading<\/h2>/);
+  assert.match(article, /<p>After<br>\nWindows<br>\nClassic<br>\nEnd<\/p>/);
+  assert.doesNotMatch(article, /[\r\u2028\u2029]/);
 });
 
 test("generated blog index preserves the approved bilingual design from main", async () => {

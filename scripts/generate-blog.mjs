@@ -50,7 +50,7 @@ function renderInline(value, slug, mediaRoot) {
 }
 
 function renderMarkdown(markdown, slug, mediaRoot) {
-  const lines = String(markdown).replaceAll("\r\n", "\n").split("\n");
+  const lines = String(markdown).replace(/\r\n?|\u2028|\u2029/g, "\n").split("\n");
   const output = [];
   for (let index = 0; index < lines.length;) {
     const line = lines[index].trim();
@@ -64,6 +64,7 @@ function renderMarkdown(markdown, slug, mediaRoot) {
     }
     const paragraph = [];
     while (index < lines.length && lines[index].trim() && !/^(#{2,3}|-)\s+/.test(lines[index].trim())) paragraph.push(renderInline(lines[index++].trim(), slug, mediaRoot));
+    if (!paragraph.length) paragraph.push(renderInline(lines[index++].trim(), slug, mediaRoot));
     output.push(`<p>${paragraph.join("<br>\n")}</p>`);
   }
   return output.join("\n    ");

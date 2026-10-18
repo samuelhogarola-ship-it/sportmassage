@@ -100,6 +100,23 @@ test("release generation uses an explicit manifest and rejects symlinks or missi
   await assert.rejects(() => generateSiteRelease({ root, releaseRoot:path.join(root,"release-3"), manifestPath:path.join(root,"deploy-manifest.json") }), /required|missing/i);
 });
 
+test("release manifest rejects a regular file reached through a symlinked parent", async () => {
+  const root = temp("sportmassage-manifest-parent-");
+  const outside = temp("sportmassage-manifest-outside-");
+  fs.mkdirSync(path.join(root, "content/blog"), { recursive: true });
+  fs.writeFileSync(path.join(root, "index.html"), "<html><head></head><body></body></html>");
+  fs.writeFileSync(path.join(root, "legal.html"), "<html><head></head><body></body></html>");
+  fs.writeFileSync(path.join(outside, "escaped.js"), "outside\n");
+  fs.symlinkSync(outside, path.join(root, "assets"));
+  fs.writeFileSync(path.join(root, "deploy-manifest.json"), JSON.stringify({ files: ["index.html", "legal.html", "assets/escaped.js"] }));
+
+  await assert.rejects(
+    () => generateSiteRelease({ root, releaseRoot: path.join(root, "release"), manifestPath: path.join(root, "deploy-manifest.json") }),
+    /symlink/i,
+  );
+  assert.equal(fs.existsSync(path.join(root, "release/assets/escaped.js")), false);
+});
+
 test("isolated build receives only an allowlisted environment", async () => {
   const root = temp("sportmassage-env-");
   const script = path.join(root, "env.mjs");

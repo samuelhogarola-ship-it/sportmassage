@@ -149,7 +149,6 @@ export function createBlogContentStore({
   fs.mkdirSync(path.join(output, "releases"), { recursive: true, mode: 0o750 });
   fs.chmodSync(output, 0o750); fs.chmodSync(path.join(output, "releases"), 0o750);
   let writer = Promise.resolve();
-  let recovered = false;
 
   function sourceFile(slug) {
     validateSlug(slug);
@@ -162,7 +161,7 @@ export function createBlogContentStore({
   }
   function mutate(label, operation) {
     const run = writer.then(() => withFilesystemLock(lock, async () => {
-      if (!recovered) { recoverBlogTransaction({ root: projectRoot, contentRoot: sources, outputRoot: output, transactionRoot: transaction }); recovered = true; }
+      recoverBlogTransaction({ root: projectRoot, contentRoot: sources, outputRoot: output, transactionRoot: transaction });
       await mutationHook(label); return operation();
     }));
     writer = run.catch(() => {});
@@ -181,6 +180,7 @@ export function createBlogContentStore({
     try { onMaintenanceError({ event: "blogger_maintenance_error", phase, errorCode }); } catch { /* maintenance reporting cannot change commit semantics */ }
   }
   async function transact(operation) {
+    if (fs.existsSync(path.join(transaction, "journal.json"))) throw new Error("Unresolved transaction journal");
     fs.rmSync(transaction, { recursive: true, force: true });
     fs.mkdirSync(transaction, { recursive: true, mode: 0o700 });
     copyDirectory(sources, path.join(transaction, "content"));

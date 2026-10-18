@@ -180,3 +180,35 @@ test("startup recovery rolls back a prepared release or accepts an already-switc
   assert.equal(fs.readlinkSync(path.join(paths.outputRoot, "current")), `releases/${newId}`);
   assert.equal(fs.existsSync(paths.transactionRoot), false);
 });
+
+test("every writer lock acquisition recovers a transaction left by another process", async () => {
+  const paths = fixture();
+  const store = content.createBlogContentStore({ ...paths, build: buildFromSources(paths) });
+  await store.create(post());
+
+  const releaseId = "1700000000002-cccccccccccccccc";
+  fs.writeFileSync(path.join(paths.contentRoot, `${post().slug}.json`), `${JSON.stringify(post({ title: "mutated" }))}\n`);
+  fs.mkdirSync(path.join(paths.transactionRoot, "content"), { recursive: true });
+  fs.writeFileSync(path.join(paths.transactionRoot, "content", `${post().slug}.json`), `${JSON.stringify(post({ title: "original" }))}\n`);
+  fs.writeFileSync(path.join(paths.transactionRoot, "journal.json"), `${JSON.stringify({ version: 1, phase: "building", releaseId, previousTarget: null })}\n`);
+  fs.mkdirSync(path.join(paths.outputRoot, "releases", releaseId), { recursive: true });
+  fs.writeFileSync(path.join(paths.outputRoot, "releases", releaseId, "index.html"), "incomplete\n");
+
+  assert.equal((await store.get(post().slug)).meta.title, "original");
+  assert.equal(fs.existsSync(paths.transactionRoot), false);
+  assert.equal(fs.existsSync(path.join(paths.outputRoot, "releases", releaseId)), false);
+});
+
+test("a transaction with an unresolved journal is preserved instead of replaced", async () => {
+  const paths = fixture();
+  const store = content.createBlogContentStore({ ...paths, build: buildFromSources(paths) });
+  await store.create(post());
+  const journal = "{ malformed journal\n";
+  fs.mkdirSync(path.join(paths.transactionRoot, "content"), { recursive: true });
+  fs.writeFileSync(path.join(paths.transactionRoot, "content", "snapshot.txt"), "preserve me\n");
+  fs.writeFileSync(path.join(paths.transactionRoot, "journal.json"), journal);
+
+  await assert.rejects(() => store.rebuild());
+  assert.equal(fs.readFileSync(path.join(paths.transactionRoot, "journal.json"), "utf8"), journal);
+  assert.equal(fs.readFileSync(path.join(paths.transactionRoot, "content", "snapshot.txt"), "utf8"), "preserve me\n");
+});

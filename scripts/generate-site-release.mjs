@@ -2,7 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 
 import { generateBlog } from "./generate-blog.mjs";
-import { assertLexicallyInside, assertNoSymlinkPath } from "./safe-filesystem.mjs";
+import { assertNoSymlinkPath } from "./safe-filesystem.mjs";
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const REQUIRED = ["index.html", "legal.html"];
@@ -40,7 +40,13 @@ function readManifest(sourceRoot, manifestPath) {
 
 function copyManifest(sourceRoot, destination, files) {
   for (const relative of files) {
-    const source = assertLexicallyInside(sourceRoot, path.join(sourceRoot, relative), "Manifest source");
+    let source;
+    try {
+      source = assertNoSymlinkPath(sourceRoot, path.join(sourceRoot, relative), "Manifest source", { allowMissing: false });
+    } catch (error) {
+      if (error?.code === "ENOENT") throw new Error(`Required manifest file is missing: ${relative}`);
+      throw error;
+    }
     let stat; try { stat = fs.lstatSync(source); } catch { throw new Error(`Required manifest file is missing: ${relative}`); }
     if (stat.isSymbolicLink() || !stat.isFile()) throw new Error(`Manifest source must be a regular non-symlink file: ${relative}`);
     const target = path.join(destination, relative); fs.mkdirSync(path.dirname(target), { recursive: true, mode: 0o750 });
@@ -62,11 +68,20 @@ function validateReferences(destination, files) {
   }
 }
 
+const ANALYTICS_DISCLOSURES = Object.freeze([
+  ["Actualmente no hay analítica activa ni cookies publicitarias. Si se activa Umami, medirá visitas agregadas y respetuosas con la privacidad sin cookies ni perfiles personales.", "Umami está activo y mide visitas agregadas respetuosas con la privacidad, sin cookies ni perfiles personales."],
+  ["Analytics is currently disabled and no advertising cookies are used. If Umami is activated, it will measure aggregate, privacy-friendly visits without cookies or personal profiles.", "Umami analytics is active and measures aggregate, privacy-friendly visits without cookies or personal profiles."],
+  ["Analytiikka ei ole tällä hetkellä käytössä eikä sivusto käytä mainosevästeitä. Jos Umami otetaan käyttöön, se mittaa koottuja käyntejä yksityisyyttä kunnioittaen ilman evästeitä tai henkilöprofiileja.", "Umami-analytiikka on käytössä ja mittaa koottuja käyntejä yksityisyyttä kunnioittaen ilman evästeitä tai henkilöprofiileja."],
+  ["La analítica está desactivada. Si se activa Umami, medirá visitas agregadas sin cookies ni perfiles personales.", "Umami está activo y mide visitas agregadas sin cookies ni perfiles personales."],
+  ["Analytics is disabled. If Umami is activated, it will measure aggregate visits without cookies or personal profiles.", "Umami analytics is active and measures aggregate visits without cookies or personal profiles."],
+  ["Analytiikka ei ole käytössä. Jos Umami otetaan käyttöön, se mittaa koottuja käyntejä ilman evästeitä tai henkilöprofiileja.", "Umami-analytiikka on käytössä ja mittaa koottuja käyntejä ilman evästeitä tai henkilöprofiileja."],
+]);
+
 function analyticsPrivacyVariant(html) {
-  return html
-    .replace("Actualmente no hay analítica activa ni cookies publicitarias. Si se activa Umami, medirá visitas agregadas y respetuosas con la privacidad sin cookies ni perfiles personales.", "Umami está activo y mide visitas agregadas respetuosas con la privacidad, sin cookies ni perfiles personales.")
-    .replace("Analytics is currently disabled and no advertising cookies are used. If Umami is activated, it will measure aggregate, privacy-friendly visits without cookies or personal profiles.", "Umami analytics is active and measures aggregate, privacy-friendly visits without cookies or personal profiles.")
-    .replace("Analytiikka ei ole tällä hetkellä käytössä eikä sivusto käytä mainosevästeitä. Jos Umami otetaan käyttöön, se mittaa koottuja käyntejä yksityisyyttä kunnioittaen ilman evästeitä tai henkilöprofiileja.", "Umami-analytiikka on käytössä ja mittaa koottuja käyntejä yksityisyyttä kunnioittaen ilman evästeitä tai henkilöprofiileja.");
+  let updated = html;
+  for (const [disabled, active] of ANALYTICS_DISCLOSURES) updated = updated.replaceAll(disabled, active);
+  if (ANALYTICS_DISCLOSURES.some(([disabled]) => updated.includes(disabled))) throw new Error("Inactive analytics disclosure remains in tracked HTML");
+  return updated;
 }
 
 export async function generateSiteRelease({
@@ -85,8 +100,7 @@ export async function generateSiteRelease({
   }
   const tracker = trackerMarkup(umamiWebsiteId, umamiScriptUrl, umamiProductionVerified);
   if (tracker) for (const file of htmlFiles(destination)) {
-    let html = fs.readFileSync(file, "utf8");
-    if (file === path.join(destination, "legal.html")) html = analyticsPrivacyVariant(html);
+    let html = analyticsPrivacyVariant(fs.readFileSync(file, "utf8"));
     if (!html.includes("data-website-id=") && html.includes("</head>")) html = html.replace("</head>", `  ${tracker}\n</head>`);
     fs.writeFileSync(file, html, { mode: 0o640 });
   }

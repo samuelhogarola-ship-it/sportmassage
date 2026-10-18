@@ -1,5 +1,7 @@
 import assert from "node:assert/strict";
+import { once } from "node:events";
 import fs from "node:fs";
+import { request as httpRequest } from "node:http";
 import os from "node:os";
 import path from "node:path";
 import test from "node:test";
@@ -55,6 +57,7 @@ async function listen(overrides = {}) {
     handoffGlobalLimit: overrides.handoffGlobalLimit,
     maxConcurrentHandoffs: overrides.maxConcurrentHandoffs,
     maxHandoffResponseBytes: overrides.maxHandoffResponseBytes,
+    accessSync: overrides.accessSync,
   });
   await new Promise((resolve, reject) => {
     server.once("error", reject);
@@ -242,7 +245,18 @@ test("anonymous clients cannot mutate posts, media or builds", async (t) => {
 });
 
 test("discovery stays public while readiness is redacted and fails closed until an active writable release exists", async (t) => {
-  const app = await listen();
+  let deniedPath;
+  let deniedMode = 0;
+  const app = await listen({
+    accessSync: (candidate, mode) => {
+      if (candidate === deniedPath && (mode & deniedMode)) {
+        const error = new Error("Permission denied");
+        error.code = "EACCES";
+        throw error;
+      }
+      fs.accessSync(candidate, mode);
+    },
+  });
   t.after(app.close);
   const discovery = await fetch(`${app.url}/.well-known/wf-blogger.json`);
   assert.equal(discovery.status, 200);
@@ -256,10 +270,13 @@ test("discovery stays public while readiness is redacted and fails closed until 
   fs.symlinkSync("releases/1700000000000-0123456789abcdef", path.join(app.root, ".blogger-state/public/current"));
   const ready = await fetch(`${app.url}/api/blogger/health`);
   assert.equal(ready.status, 200); assert.equal((await ready.json()).ready, true);
-  fs.chmodSync(path.join(app.root, "content/blog"), 0o500);
+  deniedPath = path.join(app.root, "content/blog"); deniedMode = fs.constants.W_OK;
   const unwritable = await fetch(`${app.url}/api/blogger/health`);
   assert.equal(unwritable.status, 503); assert.equal((await unwritable.json()).checks.contentWritable, false);
-  fs.chmodSync(path.join(app.root, "content/blog"), 0o750);
+  deniedPath = path.join(app.root, ".blogger-state/public/releases/1700000000000-0123456789abcdef/index.html"); deniedMode = fs.constants.R_OK;
+  const unreadableRelease = await fetch(`${app.url}/api/blogger/health`);
+  assert.equal(unreadableRelease.status, 503); assert.equal((await unreadableRelease.json()).checks.activeRelease, false);
+  deniedPath = undefined; deniedMode = 0;
   fs.mkdirSync(path.join(app.root, ".blogger-state/transaction"), { recursive: true });
   fs.writeFileSync(path.join(app.root, ".blogger-state/transaction/journal.json"), "{}");
   const unresolved = await fetch(`${app.url}/api/blogger/health`);
@@ -338,6 +355,55 @@ test("Studio launch exchange is bounded by per-IP, global and concurrency limits
   t.after(oversized.close);
   const failed = await fetch(`${oversized.url}/admin/blogger/launch`, { method:"POST", headers:{ "content-type":"application/json", origin:"http://127.0.0.1" }, body:JSON.stringify({ code:"B".repeat(43) }) });
   assert.equal(failed.status, 401); assert.deepEqual(await failed.json(), { error:"invalid_or_expired_ticket" });
+});
+
+test("Studio launch reserves concurrency before reading the body and releases it after parse errors", async (t) => {
+  let exchanges = 0;
+  const app = await listen({
+    handoffPerIpLimit: 10,
+    handoffGlobalLimit: 10,
+    maxConcurrentHandoffs: 1,
+    fetchImpl: async () => {
+      exchanges += 1;
+      return Response.json({
+        protocol: "wf-blogger-handoff/v1",
+        audience: "sportmassagefuengirola",
+        subject: { role: "client" },
+      });
+    },
+  });
+  t.after(app.close);
+  const requestObserved = once(app.server, "request");
+  let finishSlow;
+  const slowResponse = new Promise((resolve, reject) => {
+    const request = httpRequest(`${app.url}/admin/blogger/launch`, {
+      method: "POST",
+      headers: { "content-type": "application/json", origin: "http://127.0.0.1" },
+    }, (response) => {
+      response.resume();
+      response.once("end", () => resolve(response.statusCode));
+    });
+    request.once("error", reject);
+    request.write('{"code":');
+    finishSlow = () => request.end("not-json}");
+  });
+  await requestObserved;
+  const concurrent = await fetch(`${app.url}/admin/blogger/launch`, {
+    method: "POST",
+    headers: { "content-type": "application/json", origin: "http://127.0.0.1" },
+    body: JSON.stringify({ code: "A".repeat(43) }),
+  });
+  finishSlow();
+  const slowStatus = await slowResponse;
+  assert.equal(concurrent.status, 429);
+  assert.equal(slowStatus, 400);
+  const afterParseError = await fetch(`${app.url}/admin/blogger/launch`, {
+    method: "POST",
+    headers: { "content-type": "application/json", origin: "http://127.0.0.1" },
+    body: JSON.stringify({ code: "B".repeat(43) }),
+  });
+  assert.equal(afterParseError.status, 200);
+  assert.equal(exchanges, 1);
 });
 
 test("Studio launch rate limits are independently enforced per IP and globally", async (t) => {

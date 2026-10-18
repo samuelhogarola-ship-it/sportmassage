@@ -246,6 +246,7 @@ export function createPostManagerServer({
   handoffGlobalLimit = 50,
   maxConcurrentHandoffs = 4,
   maxHandoffResponseBytes = 16 * 1024,
+  accessSync = fs.accessSync,
 } = {}) {
   const config = readConfiguration(projectRoot, env);
   const sessions = createSessionStore({
@@ -297,10 +298,18 @@ export function createPostManagerServer({
   }
 
   function readiness() {
+    function canAccess(candidate, mode) {
+      try { accessSync(candidate, mode); return true; }
+      catch { return false; }
+    }
     function directory(directory) {
       try {
         const stat = fs.lstatSync(directory);
-        return { readable: stat.isDirectory() && !stat.isSymbolicLink() && Boolean(stat.mode & 0o444), writable: stat.isDirectory() && !stat.isSymbolicLink() && Boolean(stat.mode & 0o222) };
+        if (!stat.isDirectory() || stat.isSymbolicLink()) return { readable: false, writable: false };
+        return {
+          readable: canAccess(directory, fs.constants.R_OK | fs.constants.X_OK),
+          writable: canAccess(directory, fs.constants.W_OK | fs.constants.X_OK),
+        };
       } catch { return { readable: false, writable: false }; }
     }
     let activeRelease = false;
@@ -308,7 +317,9 @@ export function createPostManagerServer({
       const current = path.join(config.outputRoot, "current"); const target = fs.readlinkSync(current);
       if (/^releases\/\d{13}-[0-9a-f]{16}$/.test(target)) {
         const index = path.join(config.outputRoot, target, "index.html"); const stat = fs.lstatSync(index);
-        activeRelease = stat.isFile() && !stat.isSymbolicLink() && Boolean(stat.mode & 0o444);
+        activeRelease = stat.isFile() && !stat.isSymbolicLink()
+          && canAccess(path.dirname(index), fs.constants.X_OK)
+          && canAccess(index, fs.constants.R_OK);
       }
     } catch { activeRelease = false; }
     const content = directory(config.contentRoot); const state = directory(config.stateDirectory);
@@ -374,30 +385,34 @@ export function createPostManagerServer({
         if (!ipAttempt.allowed) { json(response, 429, { error: "launch_unavailable" }); return; }
         const globalAttempt = handoffGlobalLimiter.consume("global");
         if (!globalAttempt.allowed) { json(response, 429, { error: "launch_unavailable" }); return; }
-        const body = await readJson(request, MAX_HANDOFF_BODY);
-        if (!CODE_PATTERN.test(body.code ?? "")) throw new RequestError(400, "invalid_launch_code");
-        let exchange; let ticket; activeHandoffs += 1;
+        activeHandoffs += 1;
         try {
-          exchange = await fetchImpl(config.exchangeUrl, {
-            method: "POST", headers: { Authorization: `Bearer ${config.handoffSecret}`, "Content-Type": "application/json" },
-            body: JSON.stringify({ code: body.code, audience: BLOGGER_AUDIENCE }), signal: AbortSignal.timeout(8_000),
-          });
-          if (!exchange.ok) throw new Error("exchange_rejected");
-          ticket = await boundedResponseJson(exchange);
-        } catch { throw new RequestError(401, "invalid_or_expired_ticket"); }
-        finally { activeHandoffs -= 1; }
-        if (
-          ticket.protocol !== HANDOFF_PROTOCOL ||
-          ticket.audience !== BLOGGER_AUDIENCE ||
-          !ticket.subject ||
-          typeof ticket.subject !== "object" ||
-          Array.isArray(ticket.subject)
-        ) {
-          throw new RequestError(401, "invalid_or_expired_ticket");
+          const body = await readJson(request, MAX_HANDOFF_BODY);
+          if (!CODE_PATTERN.test(body.code ?? "")) throw new RequestError(400, "invalid_launch_code");
+          let ticket;
+          try {
+            const exchange = await fetchImpl(config.exchangeUrl, {
+              method: "POST", headers: { Authorization: `Bearer ${config.handoffSecret}`, "Content-Type": "application/json" },
+              body: JSON.stringify({ code: body.code, audience: BLOGGER_AUDIENCE }), signal: AbortSignal.timeout(8_000),
+            });
+            if (!exchange.ok) throw new Error("exchange_rejected");
+            ticket = await boundedResponseJson(exchange);
+          } catch { throw new RequestError(401, "invalid_or_expired_ticket"); }
+          if (
+            ticket.protocol !== HANDOFF_PROTOCOL ||
+            ticket.audience !== BLOGGER_AUDIENCE ||
+            !ticket.subject ||
+            typeof ticket.subject !== "object" ||
+            Array.isArray(ticket.subject)
+          ) {
+            throw new RequestError(401, "invalid_or_expired_ticket");
+          }
+          audit({ event: "session_created", origin: "studio" });
+          establish(request, response, { source: "studio", scope: ["blogger"], subject: ticket.subject });
+          return;
+        } finally {
+          activeHandoffs -= 1;
         }
-        audit({ event: "session_created", origin: "studio" });
-        establish(request, response, { source: "studio", scope: ["blogger"], subject: ticket.subject });
-        return;
       }
 
       if (method === "GET" && url.pathname === "/api/admin/session") {
