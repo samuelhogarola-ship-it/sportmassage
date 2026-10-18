@@ -53,4 +53,7 @@ Revisa este proyecto, haz los cambios pedidos, comprueba los textos en todos los
 - `vendor/` contenía `legal-core.css` y `legal-core.js` como soporte de la página legal.
 - La versión actual de la web ya lleva ese contenido inline, así que `vendor/` no es obligatorio para que la home y `legal.html` funcionen.
 - Aun así, conviene revisar en cada redeploy que no queden referencias antiguas a `vendor/...` ni archivos sueltos mezclados en `public_html`.
-- El blog HTML vive dentro de `blog/` y se publica junto con la web principal en `public_html`. Blogger Studio usa `/blog/` como base pública y genera cada artículo en `blog/<slug>/index.html`.
+- La web pública se genera en versiones inmutables dentro de `.blogger-state/public/releases/`; el enlace atómico `.blogger-state/public/current` selecciona la versión activa. Blogger Studio usa `/blog/` como base pública y genera cada artículo en `blog/<slug>/index.html` dentro de esa versión.
+- El servicio local de Blogger, sus variables y las comprobaciones de despliegue están documentados en `docs/blogger-deployment.md`.
+- `content/blog/` es la fuente persistente. El servicio reconstruye la web completa en un proceso aislado y activa la versión solo cuando termina correctamente.
+- `npm run build:site` prepara la primera versión y el enlace `current` que sirve Nginx; `npm run build:blog` solo genera una vista previa local del blog dentro del checkout.

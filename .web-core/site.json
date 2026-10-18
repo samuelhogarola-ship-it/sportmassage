@@ -16,6 +16,8 @@
   },
   "blogger": {
     "enabled": true,
+    "tenantKey": "sportmassagefuengirola",
+    "tenantAliases": ["sportmassage"],
     "url": "https://sportmassagefuengirola.com/admin/blogger/",
     "apiBase": "/api/posts",
     "buildEndpoint": "/api/build",

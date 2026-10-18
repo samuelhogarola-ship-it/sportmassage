@@ -549,3 +549,51 @@ textarea {
     flex-direction: column;
   }
 }
+
+.login-shell {
+  align-items: center;
+  background: linear-gradient(135deg, #102a35, #214a58);
+  display: flex;
+  inset: 0;
+  justify-content: center;
+  min-height: 100vh;
+  padding: 24px;
+  position: fixed;
+  z-index: 1000;
+}
+
+.login-shell[hidden],
+.app-shell[hidden] {
+  display: none;
+}
+
+.login-card {
+  background: #fff;
+  border-radius: 16px;
+  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.28);
+  display: grid;
+  gap: 16px;
+  max-width: 420px;
+  padding: 34px;
+  width: 100%;
+}
+
+.login-card h1,
+.login-card p {
+  margin: 0;
+}
+
+.login-card label {
+  display: grid;
+  font-size: 0.85rem;
+  font-weight: 700;
+  gap: 6px;
+}
+
+.login-eyebrow {
+  color: #9a6d28;
+  font-size: 0.74rem;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
