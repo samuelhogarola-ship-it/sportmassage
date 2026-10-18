@@ -58,6 +58,7 @@ test("site releases inject Umami everywhere public only after explicit productio
   const bloggerEntry = fs.readFileSync(path.join(enabled, "admin/blogger/index.html"), "utf8");
   assert.match(bloggerEntry, /https:\/\/admin\.webfuengirola\.com\/cliente\/proyectos\/sportmassagefuengirola\/blogger/);
   assert.doesNotMatch(bloggerEntry, /\/api\/|admin\/blogger\/login/);
+  assert.doesNotMatch(bloggerEntry, /data-website-id|analytics\.example/);
   assert.equal(fs.existsSync(path.join(enabled, "admin/blogger/app.js")), false);
   assert.equal(fs.existsSync(path.join(enabled, ".env")), false);
 });

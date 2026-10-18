@@ -105,7 +105,8 @@ export async function generateSiteRelease({
     const target = path.join(destination, required); if (!fs.existsSync(target) || !fs.lstatSync(target).isFile()) throw new Error(`Required release output is missing: ${required}`);
   }
   const tracker = trackerMarkup(umamiWebsiteId, umamiScriptUrl, umamiProductionVerified);
-  if (tracker) for (const file of htmlFiles(destination)) {
+  const adminRoot = `${path.join(destination, "admin")}${path.sep}`;
+  if (tracker) for (const file of htmlFiles(destination).filter((candidate) => !candidate.startsWith(adminRoot))) {
     let html = analyticsPrivacyVariant(fs.readFileSync(file, "utf8"));
     if (!html.includes("data-website-id=") && html.includes("</head>")) html = html.replace("</head>", `  ${tracker}\n</head>`);
     fs.writeFileSync(file, html, { mode: 0o640 });
