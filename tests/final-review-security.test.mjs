@@ -135,6 +135,7 @@ test("deployment declares shared read access and hardened admin response headers
   const nginx = fs.readFileSync(path.join(repo, "deploy/nginx-blogger.conf.example"), "utf8");
   assert.match(service, /^Group=www-data$/m); assert.match(service, /^UMask=0027$/m);
   for (const expected of ["Content-Security-Policy", "frame-ancestors 'none'", "X-Frame-Options \"DENY\"", "X-Content-Type-Options \"nosniff\"", "Referrer-Policy \"no-referrer\"", "Cache-Control \"no-store\""]) assert.match(nginx, new RegExp(expected));
+  assert.match(nginx, /location \/admin\/blogger\/ \{[^}]*root \/srv\/sportmassage\/current\/\.blogger-state\/public\/current;/);
   const binary = ["/opt/homebrew/bin/nginx", "/usr/sbin/nginx", "/usr/local/sbin/nginx"].find(fs.existsSync);
   if (binary) {
     const prefix = temp("sportmassage-nginx-"); const configuration = path.join(prefix, "nginx.conf");
