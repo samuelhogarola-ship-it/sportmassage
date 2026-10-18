@@ -28,6 +28,16 @@ Each mutation snapshots content and writes `.blogger-state/transaction/journal.j
 
 Studio launch URLs must put the one-time code in the fragment (`/admin/blogger/#code=...`). Fragments are not sent in HTTP request targets. The browser removes the fragment and exchanges the code in a same-origin POST body.
 
+## Site identity compatibility
+
+The existing `.web-core/site.json` registry and panel route keep the historical `sportmassage` key. Blogger declares `sportmassagefuengirola` separately as its canonical Studio tenant and handoff audience, with `sportmassage` listed only as a discovery/configuration alias. Authentication remains fail-closed: the runtime sends and accepts only the canonical `sportmassagefuengirola` audience during the one-time Studio exchange.
+
+## Generated blog and verification
+
+`scripts/generate-blog.mjs` owns the public blog HTML, including the current bilingual index design. Treat the committed `blog/index.html` as a generated preview; update the generator and its tests instead of hand-editing generated output. The release manifest follows the current `origin/main` proposal assets so a full static build cannot silently publish stale design files.
+
+Pull requests run `npm test`, `npm run check`, and `npm run build:site` in CI. The source check also rejects tracked legacy CMS routes/references and archive files so the static Blogger flow cannot drift back to the retired publishing path.
+
 ## Service commands
 
 ```sh

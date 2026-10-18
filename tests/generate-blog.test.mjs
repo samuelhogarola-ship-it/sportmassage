@@ -80,6 +80,19 @@ test("generator output is byte-for-byte deterministic", async () => {
   }
 });
 
+test("generated blog index preserves the approved bilingual design from main", async () => {
+  assert.equal(typeof generator.generateBlog, "function");
+  const paths = fixture();
+  await generator.generateBlog(paths);
+  const index = fs.readFileSync(path.join(paths.outputRoot, "index.html"), "utf8");
+  assert.match(index, /<title>Blog \| Aprende sobre tu cuerpo y tu salud<\/title>/);
+  assert.match(index, /class="language-switcher"/);
+  assert.match(index, /data-lang="es"/);
+  assert.match(index, /data-lang="en"/);
+  assert.match(index, /data-i18n="title"/);
+  assert.match(index, /localStorage\.setItem\('smf-lang', lang\)/);
+});
+
 test("Umami is injected only with a valid explicit website UUID", async () => {
   assert.equal(typeof generator.generateBlog, "function");
   const validId = "123e4567-e89b-42d3-a456-426614174000";

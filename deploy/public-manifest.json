@@ -3,8 +3,10 @@
     "index.html", "legal.html", "cookie-banner-core.js", "legal-core.css", "legal-core.js",
     "favicon-16.png", "favicon-16.webp", "favicon-192.png", "favicon-32.png", "favicon-32.webp",
     "favicon-512.webp", "favicon.ico", "logo.png", "logo.webp", "nif.png",
-    "propuesta/moderno/index.html", "propuesta/moderno/assets/salon-toscana.png",
-    "propuesta/creativa/index.html", "propuesta/creativa/assets/composicion-salon.png",
-    "propuesta/color-diferente/index.html", "propuesta/color-diferente/assets/hero-salon.png"
+    "propuesta/moderno/index.html",
+    "propuesta/creativa/index.html", "propuesta/creativa/assets/services/intraoral.png",
+    "propuesta/creativa/assets/services/linfatico.png", "propuesta/creativa/assets/services/oficina.png",
+    "propuesta/creativa/assets/services/padel.png",
+    "propuesta/color-diferente/index.html", "propuesta/color-diferente/assets/sofia-profile-real.png"
   ]
 }

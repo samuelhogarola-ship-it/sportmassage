@@ -5,6 +5,28 @@ import test from "node:test";
 
 const root = path.resolve(import.meta.dirname, "..");
 
+test("site configuration keeps the legacy panel key and declares the canonical Studio tenant", () => {
+  const config = JSON.parse(fs.readFileSync(path.join(root, ".web-core/site.json"), "utf8"));
+  assert.equal(config.key, "sportmassage");
+  assert.equal(config.panel.key, "sportmassage");
+  assert.equal(config.blogger.tenantKey, "sportmassagefuengirola");
+  assert.deepEqual(config.blogger.tenantAliases, ["sportmassage"]);
+});
+
+test("the public release manifest follows the current origin/main design assets", () => {
+  const manifest = JSON.parse(fs.readFileSync(path.join(root, "deploy/public-manifest.json"), "utf8"));
+  for (const relative of manifest.files) {
+    assert.equal(fs.existsSync(path.join(root, relative)), true, relative);
+  }
+});
+
+test("CI verifies tests, source policy and the complete static release build", () => {
+  const workflow = fs.readFileSync(path.join(root, ".github/workflows/ci.yml"), "utf8");
+  assert.match(workflow, /npm test/);
+  assert.match(workflow, /npm run check/);
+  assert.match(workflow, /npm run build:site/);
+});
+
 test("the service sandbox grants writes to every default transactional publication path", () => {
   const unit = fs.readFileSync(path.join(root, "deploy/sportmassage-blogger.service.example"), "utf8");
   const projectRoot = "/srv/sportmassage/current";

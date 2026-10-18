@@ -82,8 +82,26 @@ function trackerMarkup(websiteId, scriptUrl, productionVerified) {
 }
 
 const sharedStyles = `<style>
-    :root{color-scheme:light;--navy:#102a35;--gold:#c9a96e;--paper:#f6f3ee;--muted:#53656b}*{box-sizing:border-box}body{margin:0;color:var(--navy);background:var(--paper);font:16px/1.7 Arial,sans-serif}main{width:min(920px,calc(100% - 40px));margin:0 auto;padding:72px 0}.eyebrow{color:var(--gold);letter-spacing:.16em;text-transform:uppercase;font-size:.78rem}h1{margin:12px 0 20px;font:500 clamp(2.5rem,7vw,5rem)/1 Georgia,serif}h2,h3{font-family:Georgia,serif}.intro,.meta{color:var(--muted)}.posts{display:grid;gap:20px;margin-top:44px}.post-card{padding:28px;background:#fff;border:1px solid #ded8ce}.post-card a,.back{color:inherit}.article{font-size:1.08rem}.article p{margin:1.2em 0}.back{display:inline-block;margin-top:36px;color:var(--gold)}
+    :root{color-scheme:light;--navy:#102a35;--gold:#c9a96e;--paper:#f6f3ee;--muted:#53656b}*{box-sizing:border-box}body{margin:0;color:var(--navy);background:var(--paper);font:16px/1.7 Arial,sans-serif}main{width:min(1100px,calc(100% - 40px));margin:0 auto;padding:72px 0}.eyebrow{color:var(--gold);letter-spacing:.16em;text-transform:uppercase;font-size:.78rem}h1{max-width:720px;margin:12px 0 20px;font:500 clamp(2.5rem,7vw,5.6rem)/.98 Georgia,serif}h2,h3{font-family:Georgia,serif}.intro,.meta{color:var(--muted)}.posts{display:grid;gap:20px;margin-top:48px}.post-card,.empty{padding:32px;background:#fff;border:1px solid #ded8ce}.post-card a,.back{color:inherit}.article{font-size:1.08rem}.article p{margin:1.2em 0}.back{display:inline-block;margin-top:28px;color:var(--gold)}.site-top{width:min(1100px,calc(100% - 40px));margin:0 auto;padding:24px 0 0;display:flex;justify-content:space-between;align-items:center;gap:24px}.brand{color:var(--navy);text-decoration:none;font:600 1rem/1.1 Georgia,serif;letter-spacing:.03em}.brand small{display:block;margin-top:5px;color:#718086;font:500 .65rem/1 Arial,sans-serif;letter-spacing:.14em;text-transform:uppercase}.blog-nav{display:flex;align-items:center;gap:18px}.home-link{color:var(--gold);text-decoration:none;font-size:.82rem}.language-switcher{display:flex;gap:5px}.language-switcher button{border:1px solid #d8d0c4;border-radius:999px;background:transparent;color:#53656b;padding:6px 9px;cursor:pointer;font-size:.72rem;letter-spacing:.06em}.language-switcher button.active,.language-switcher button:hover{background:var(--navy);color:#fff;border-color:var(--navy)}@media(max-width:620px){.site-top{align-items:flex-start}.blog-nav{flex-direction:column;align-items:flex-end;gap:10px}}
   </style>`;
+
+const blogIndexScript = `  <script>
+    const copy = {
+      es: { home: 'Inicio', title: 'Aprende sobre tu cuerpo y tu salud.', intro: 'Artículos sobre masaje, recuperación muscular, postura y bienestar. Aquí aparecerán las publicaciones creadas desde Blogger.', soon: 'Próximamente', empty: 'Estamos preparando nuevos artículos para ayudarte a cuidar tu cuerpo en el día a día.', back: '← Volver a Sport Massage' },
+      en: { home: 'Home', title: 'Learn about your body and your health.', intro: 'Articles about massage, muscle recovery, posture and wellbeing. New posts created from Blogger will appear here.', soon: 'Coming soon', empty: 'We are preparing new articles to help you care for your body every day.', back: '← Back to Sport Massage' }
+    };
+    function setBlogLanguage(lang) {
+      const t = copy[lang] || copy.es;
+      document.documentElement.lang = lang;
+      document.querySelectorAll('[data-i18n]').forEach((el) => { el.textContent = t[el.dataset.i18n]; });
+      document.querySelectorAll('[data-lang]').forEach((button) => button.classList.toggle('active', button.dataset.lang === lang));
+      try { localStorage.setItem('smf-lang', lang); } catch (error) {}
+    }
+    document.querySelectorAll('[data-lang]').forEach((button) => button.addEventListener('click', () => setBlogLanguage(button.dataset.lang)));
+    let initialLanguage = 'es';
+    try { initialLanguage = localStorage.getItem('smf-lang') || (navigator.language.toLowerCase().startsWith('en') ? 'en' : 'es'); } catch (error) {}
+    setBlogLanguage(initialLanguage);
+  </script>`;
 
 function page({ title, description, canonical, body, tracker, lang = "es" }) {
   return `<!doctype html>
@@ -151,13 +169,15 @@ export async function generateBlog({
 
   const cards = posts.length
     ? posts.map((post) => `<article class="post-card"><p class="meta">${escapeHtml(post.date)} · ${escapeHtml(post.category)}</p><h2><a href="/blog/${escapeHtml(post.slug)}/">${escapeHtml(post.title)}</a></h2><p>${escapeHtml(post.description)}</p></article>`).join("\n      ")
-    : `<section class="post-card" aria-labelledby="empty-title"><h2 id="empty-title">Próximamente</h2><p>Estamos preparando nuevos artículos para ayudarte a cuidar tu cuerpo en el día a día.</p></section>`;
+    : `<h2 id="empty-title" data-i18n="soon">Próximamente</h2><p data-i18n="empty">Estamos preparando nuevos artículos para ayudarte a cuidar tu cuerpo en el día a día.</p>`;
   fs.writeFileSync(path.join(outputRoot, "index.html"), page({
-    title: "Blog | Sport Massage in Fuengirola",
-    description: "Consejos de masaje deportivo, recuperación y bienestar en Fuengirola.",
+    title: "Blog | Aprende sobre tu cuerpo y tu salud",
+    description: "Aprende sobre tu cuerpo, masaje, recuperación y salud con Sport Massage Fuengirola.",
     canonical: `${SITE_ORIGIN}/blog/`,
     tracker,
-    body: `  <main><p class="eyebrow">Sport Massage in Fuengirola</p><h1>Consejos para moverte mejor.</h1><p class="intro">Artículos sobre masaje, recuperación muscular, postura y bienestar.</p><section class="posts">${cards}</section><a class="back" href="/">← Volver a Sport Massage</a></main>`,
+    body: `  <header class="site-top"><a class="brand" href="/">Sport Massage<small>Fuengirola · Sofía</small></a><div class="blog-nav"><a class="home-link" href="/" data-i18n="home">Inicio</a><div class="language-switcher" aria-label="Language selector"><button type="button" data-lang="es" class="active">ES</button><button type="button" data-lang="en">EN</button></div></div></header>
+  <main><p class="eyebrow">Sport Massage in Fuengirola</p><h1 data-i18n="title">Aprende sobre tu cuerpo y tu salud.</h1><p class="intro" data-i18n="intro">Artículos sobre masaje, recuperación muscular, postura y bienestar. Aquí aparecerán las publicaciones creadas desde Blogger.</p><section class="${posts.length ? "posts" : "empty"}"${posts.length ? "" : " aria-labelledby=\"empty-title\""}>${cards}</section><a class="back" href="/" data-i18n="back">← Volver a Sport Massage</a></main>
+${blogIndexScript}`,
   }), { mode: 0o640 });
 
   for (const post of posts) {
