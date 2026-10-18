@@ -394,8 +394,12 @@
     /* Proposal: same site architecture, expressive plum and clay accents without changing the content model. */
     :root { --navy:#30283d; --navy-mid:#473c55; --teal:#ad6e62; --teal-light:#c48778; --gold:#d6b06a; --cream:#fbf7f1; }
     .hero::before { background: radial-gradient(ellipse 60% 50% at 20% 80%, rgba(173,110,98,.24), transparent 70%), radial-gradient(ellipse 50% 60% at 80% 20%, rgba(214,176,106,.14), transparent 70%); }
-    .service-card { background: #fffaf5; border-color: rgba(48,40,61,.15); }
-    .service-card:hover { background: rgba(173,110,98,.08); }
+    .service-card { background: var(--navy-mid); border-color: rgba(255,255,255,.08); color: var(--white); transition: background .35s, color .35s; }
+    .service-card:hover { background: var(--cream); color: var(--text); }
+    .service-card:hover h3, .service-card:hover .service-desc, .service-card:hover .price-row, .service-card:hover .service-list li, .service-card:hover .single-price span { color: var(--text); }
+    .service-card:hover .price-row { border-color: rgba(48,40,61,.14); }
+    .service-card:hover .price, .service-card:hover .single-price { color: var(--teal); }
+    @media (hover: none) { .service-card:hover { background: var(--navy-mid); color: var(--white); } .service-card:hover h3, .service-card:hover .service-desc, .service-card:hover .price-row, .service-card:hover .service-list li, .service-card:hover .single-price span { color: inherit; } .service-card:hover .price-row { border-color: rgba(255,255,255,.07); } .service-card:hover .price, .service-card:hover .single-price { color: var(--gold); } }
     .service-card { padding: 44px 40px; background-image: none; }
     .service-icon { display: none !important; }
     .price-table, .price-row, .single-price { opacity: 1 !important; visibility: visible !important; transform: none !important; }
