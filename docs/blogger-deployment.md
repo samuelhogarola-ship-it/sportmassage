@@ -9,7 +9,7 @@ Keep Blogger disabled in Studio until all of these checks pass over HTTPS:
 1. Mount `content/blog`, `content/blog/media`, and `.blogger-state` on persistent storage owned by the service account with shared group `www-data`. Directories are `0750`, generated files are `0640`, and the service runs with `UMask=0027`, so Nginx can traverse/read releases without write access.
 2. Fill every required `BLOGGER_*` value in a protected environment file. Use independent strong session and handoff secrets.
 3. Configure Studio to exchange one-time codes for the exact audience `sportmassagefuengirola`.
-4. Serve the public site from `.blogger-state/public/current`, serve `/admin/blogger/` from the checkout, and route `/api/` to the service without exposing its loopback port directly.
+4. Serve the public site and `/admin/blogger/` from the generated `.blogger-state/public/current` release, and route `/api/` to the service without exposing its loopback port directly. The generated admin entry redirects to the canonical Studio Blogger; never serve the retired checkout editor assets.
 5. Confirm `GET /.well-known/wf-blogger.json` returns discovery capabilities and `GET /api/blogger/health` returns `200` with redacted boolean checks. Health intentionally returns `503` when there is no active release, content/state permissions are unusable, or transaction recovery remains unresolved. Neither response contains credentials, paths, launch codes, or analytics identifiers.
 6. Verify direct login grants only the `blogger` scope, Studio launch records the `studio` audit origin, and logout invalidates the session.
 7. Publish and unpublish a fixture post, then force a build failure and confirm source/public rollback before using real content.
@@ -26,7 +26,7 @@ Each mutation snapshots content and writes `.blogger-state/transaction/journal.j
 
 `UMAMI_WEBSITE_ID` and `UMAMI_SCRIPT_URL` must stay empty until a real Sport Massage site UUID and HTTPS collector URL are available. Independently keep `UMAMI_PRODUCTION_VERIFIED=false`. Verify the production collector and site registration out of band, review the legal copy, and only then set the gate to `true`. The generator injects the tracker across public HTML only when the UUID, HTTPS URL, and verification gate all pass; admin HTML is excluded.
 
-Studio launch URLs must put the one-time code in the fragment (`/admin/blogger/#code=...`). Fragments are not sent in HTTP request targets. The browser removes the fragment and exchanges the code in a same-origin POST body.
+`/admin/blogger/` is a stable, credential-free entry point. It redirects the browser to Sport Massage's canonical Blogger page in Studio, where Studio owns authentication and the editing session. No launch code or secret is embedded in the generated site.
 
 ## Site identity compatibility
 
