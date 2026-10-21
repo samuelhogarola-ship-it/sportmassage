@@ -56,7 +56,8 @@ test("site releases inject Umami everywhere public only after explicit productio
   assert.match(fs.readFileSync(path.join(enabled, "legal.html"), "utf8"), /Umami analytics is active/);
   assert.doesNotMatch(fs.readFileSync(path.join(enabled, "legal.html"), "utf8"), /currently disabled/);
   const bloggerEntry = fs.readFileSync(path.join(enabled, "admin/blogger/index.html"), "utf8");
-  assert.match(bloggerEntry, /https:\/\/admin\.webfuengirola\.com\/cliente\/proyectos\/sportmassagefuengirola\/blogger/);
+  assert.match(bloggerEntry, /https:\/\/admin\.webfuengirola\.com\/acceso\/blogger\/sportmassagefuengirola/);
+  assert.doesNotMatch(bloggerEntry, /\/cliente\/proyectos\/sportmassagefuengirola\/blogger/);
   assert.doesNotMatch(bloggerEntry, /\/api\/|admin\/blogger\/login/);
   assert.doesNotMatch(bloggerEntry, /data-website-id|analytics\.example/);
   assert.equal(fs.existsSync(path.join(enabled, "admin/blogger/app.js")), false);
