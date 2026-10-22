@@ -8,9 +8,10 @@ const root = path.resolve(import.meta.dirname, "..");
 
 test("Studio launch codes are consumed from the URL fragment and sent only in a POST body", async () => {
   assert.equal(typeof browserAuth.consumeStudioLaunchFragment, "function");
+  const code = "A".repeat(43);
   const requests = [];
   const replacements = [];
-  const location = { href: "https://sportmassagefuengirola.com/admin/blogger/#code=A_secret_launch_code" };
+  const location = { href: `https://sportmassagefuengirola.com/admin/blogger/#protocol=wf-blogger-handoff%2Fv1&code=${code}&siteKey=sportmassagefuengirola` };
   const consumed = await browserAuth.consumeStudioLaunchFragment({
     location,
     replaceUrl: (value) => replacements.push(value),
@@ -20,8 +21,28 @@ test("Studio launch codes are consumed from the URL fragment and sent only in a 
   assert.deepEqual(replacements, ["/admin/blogger/"]);
   assert.equal(requests[0].url, "/admin/blogger/launch");
   assert.equal(requests[0].options.method, "POST");
-  assert.deepEqual(JSON.parse(requests[0].options.body), { code: "A_secret_launch_code" });
-  assert.equal(requests[0].url.includes("A_secret_launch_code"), false);
+  assert.deepEqual(JSON.parse(requests[0].options.body), {
+    protocol: "wf-blogger-handoff/v1",
+    code,
+    siteKey: "sportmassagefuengirola",
+  });
+  assert.equal(requests[0].url.includes(code), false);
+});
+
+test("Studio launch fragments fail closed unless protocol, code and siteKey match the exact contract", async () => {
+  assert.equal(typeof browserAuth.parseStudioLaunchFragment, "function");
+  const code = "B".repeat(43);
+  assert.deepEqual(browserAuth.parseStudioLaunchFragment(`https://sportmassagefuengirola.com/admin/blogger/#protocol=wf-blogger-handoff%2Fv1&code=${code}&siteKey=sportmassagefuengirola`), {
+    protocol: "wf-blogger-handoff/v1",
+    code,
+    siteKey: "sportmassagefuengirola",
+  });
+  for (const fragment of [
+    `protocol=wrong&code=${code}&siteKey=sportmassagefuengirola`,
+    `protocol=wf-blogger-handoff%2Fv1&code=short&siteKey=sportmassagefuengirola`,
+    `protocol=wf-blogger-handoff%2Fv1&code=${code}&siteKey=other`,
+    `protocol=wf-blogger-handoff%2Fv1&code=${code}&siteKey=sportmassagefuengirola&extra=1`,
+  ]) assert.equal(browserAuth.parseStudioLaunchFragment(`https://sportmassagefuengirola.com/admin/blogger/#${fragment}`), null);
 });
 
 test("query-string launch codes are ignored so they cannot be propagated through request targets", async () => {
@@ -73,6 +94,7 @@ test("login and mobile editor markup expose remembered access and touch-safe res
   assert.match(css, /overflow-x:\s*(?:auto|hidden)/);
   assert.match(css, /position:\s*sticky/);
   assert.match(css, /bottom:\s*0/);
+  assert.doesNotMatch(css, /display:\s*inline-flex;\s*$/);
 });
 
 test("the login form falls back to same-origin POST when JavaScript is unavailable", () => {

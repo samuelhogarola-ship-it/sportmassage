@@ -138,6 +138,7 @@ test("deployment declares shared read access and hardened admin response headers
   for (const expected of ["Content-Security-Policy", "frame-ancestors 'none'", "X-Frame-Options \"DENY\"", "X-Content-Type-Options \"nosniff\"", "Referrer-Policy \"no-referrer\"", "Cache-Control \"no-store\""]) assert.match(nginx, new RegExp(expected));
   assert.match(nginx, /location \/admin\/blogger\/ \{[^}]*root \/srv\/sportmassage\/current\/\.blogger-state\/public\/current;/);
   assert.match(deploymentGuide, /serve .*`\/admin\/blogger\/` from the generated `.blogger-state\/public\/current` release/i);
+  assert.match(deploymentGuide, /chmod 0600 \/srv\/sportmassage\/current\/\.blogger-state\/sessions\.json/);
   assert.match(nginx, /script-src 'self'/);
   assert.match(nginx, /connect-src 'self'/);
   assert.match(deploymentGuide, /independent Sport Massage editor/i);

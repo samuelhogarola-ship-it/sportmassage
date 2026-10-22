@@ -13,14 +13,34 @@ export async function fetchBloggerJson(fetchImpl, url, options = {}) {
   return body;
 }
 
+const HANDOFF_PROTOCOL = "wf-blogger-handoff/v1";
+const BLOGGER_SITE_KEY = "sportmassagefuengirola";
+const HANDOFF_CODE_PATTERN = /^[A-Za-z0-9_-]{43}$/;
+
+export function parseStudioLaunchFragment(href) {
+  const url = new URL(href);
+  const fragment = new URLSearchParams(url.hash.slice(1));
+  if ([...fragment.keys()].sort().join(",") !== "code,protocol,siteKey") return null;
+  const input = {
+    protocol: fragment.get("protocol"),
+    code: fragment.get("code"),
+    siteKey: fragment.get("siteKey"),
+  };
+  if (
+    input.protocol !== HANDOFF_PROTOCOL ||
+    !HANDOFF_CODE_PATTERN.test(input.code ?? "") ||
+    input.siteKey !== BLOGGER_SITE_KEY
+  ) return null;
+  return input;
+}
+
 export async function consumeStudioLaunchFragment({ location, replaceUrl, request }) {
   const url = new URL(location.href);
-  const fragment = new URLSearchParams(url.hash.slice(1));
-  const code = fragment.get("code");
-  if (!code) return false;
+  const input = parseStudioLaunchFragment(url.href);
+  if (!input) return false;
   url.hash = "";
   replaceUrl(`${url.pathname}${url.search}`);
-  await request("/admin/blogger/launch", { method: "POST", body: JSON.stringify({ code }) });
+  await request("/admin/blogger/launch", { method: "POST", body: JSON.stringify(input) });
   return true;
 }
 

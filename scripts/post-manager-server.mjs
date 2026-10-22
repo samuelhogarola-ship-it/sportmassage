@@ -16,7 +16,8 @@ import { createBlogContentStore } from "./blog-content-store.mjs";
 import { createStaticReleaseBuildRunner } from "./blog-build-runner.mjs";
 
 export const HANDOFF_PROTOCOL = "wf-blogger-handoff/v1";
-export const BLOGGER_AUDIENCE = "sportmassagefuengirola";
+export const BLOGGER_SITE_KEY = "sportmassagefuengirola";
+export const BLOGGER_AUDIENCE = "https://sportmassagefuengirola.com";
 const COOKIE_NAME = "__Host-sportmassage_blogger_session";
 const CODE_PATTERN = /^[A-Za-z0-9_-]{43}$/;
 const MAX_LOGIN_BODY = 8 * 1024;
@@ -220,9 +221,38 @@ function decodeDataUrl(value) {
 function publicCapabilities() {
   return {
     protocol: HANDOFF_PROTOCOL,
+    siteKey: BLOGGER_SITE_KEY,
     audience: BLOGGER_AUDIENCE,
     capabilities: ["posts", "media", "publish", "unpublish"],
   };
+}
+
+function exactKeys(value, expected) {
+  return Object.keys(value).sort().join(",") === [...expected].sort().join(",");
+}
+
+export function serializeHandoffExchangeRequest(code) {
+  return JSON.stringify({ protocol: HANDOFF_PROTOCOL, code, siteKey: BLOGGER_SITE_KEY });
+}
+
+export function validateHandoffExchangeResponse(ticket) {
+  if (
+    !ticket || typeof ticket !== "object" || Array.isArray(ticket) ||
+    !exactKeys(ticket, ["protocol", "siteKey", "audience", "subject"]) ||
+    ticket.protocol !== HANDOFF_PROTOCOL ||
+    ticket.siteKey !== BLOGGER_SITE_KEY ||
+    ticket.audience !== BLOGGER_AUDIENCE
+  ) return null;
+  const subject = ticket.subject;
+  if (
+    !subject || typeof subject !== "object" || Array.isArray(subject) ||
+    !exactKeys(subject, ["role", "userId", "clientId", "projectId"]) ||
+    !["admin", "client"].includes(subject.role) ||
+    typeof subject.userId !== "string" || !subject.userId ||
+    (subject.clientId !== null && (typeof subject.clientId !== "string" || !subject.clientId)) ||
+    typeof subject.projectId !== "string" || !subject.projectId
+  ) return null;
+  return structuredClone(subject);
 }
 
 export async function verifyDirectCredentials({
@@ -393,27 +423,25 @@ export function createPostManagerServer({
         activeHandoffs += 1;
         try {
           const body = await readJson(request, MAX_HANDOFF_BODY);
-          if (!CODE_PATTERN.test(body.code ?? "")) throw new RequestError(400, "invalid_launch_code");
+          if (
+            !body || typeof body !== "object" || Array.isArray(body) ||
+            !exactKeys(body, ["protocol", "code", "siteKey"]) ||
+            body.protocol !== HANDOFF_PROTOCOL || body.siteKey !== BLOGGER_SITE_KEY ||
+            !CODE_PATTERN.test(body.code ?? "")
+          ) throw new RequestError(400, "invalid_launch_code");
           let ticket;
           try {
             const exchange = await fetchImpl(config.exchangeUrl, {
               method: "POST", headers: { Authorization: `Bearer ${config.handoffSecret}`, "Content-Type": "application/json" },
-              body: JSON.stringify({ code: body.code, audience: BLOGGER_AUDIENCE }), signal: AbortSignal.timeout(8_000),
+              body: serializeHandoffExchangeRequest(body.code), signal: AbortSignal.timeout(8_000),
             });
             if (!exchange.ok) throw new Error("exchange_rejected");
             ticket = await boundedResponseJson(exchange);
           } catch { throw new RequestError(401, "invalid_or_expired_ticket"); }
-          if (
-            ticket.protocol !== HANDOFF_PROTOCOL ||
-            ticket.audience !== BLOGGER_AUDIENCE ||
-            !ticket.subject ||
-            typeof ticket.subject !== "object" ||
-            Array.isArray(ticket.subject)
-          ) {
-            throw new RequestError(401, "invalid_or_expired_ticket");
-          }
+          const subject = validateHandoffExchangeResponse(ticket);
+          if (!subject) throw new RequestError(401, "invalid_or_expired_ticket");
           audit({ event: "session_created", origin: "studio" });
-          establish(request, response, { source: "studio", scope: ["blogger"], subject: ticket.subject });
+          establish(request, response, { source: "studio", scope: ["blogger"], subject });
           return;
         } finally {
           activeHandoffs -= 1;

@@ -8,7 +8,7 @@ Keep Blogger disabled in Studio until all of these checks pass over HTTPS:
 
 1. Mount `content/blog`, `content/blog/media`, and `.blogger-state` on persistent storage owned by the service account with shared group `www-data`. Directories are `0750`, generated files are `0640`, and the service runs with `UMask=0027`, so Nginx can traverse/read releases without write access.
 2. Fill every required `BLOGGER_*` value in a protected environment file. Set `BLOGGER_DIRECT_USERNAME=sportsmassage`, generate `BLOGGER_DIRECT_PASSWORD_HASH` from the operator-supplied password with `node scripts/generate-blogger-password-hash.mjs` reading standard input, and use independent strong session and handoff secrets. Never place the plaintext password in a command argument, source file, documentation, log, or test fixture.
-3. Configure Studio to exchange one-time codes for the exact audience `sportmassagefuengirola`.
+3. Configure Studio to exchange one-time codes for site key `sportmassagefuengirola` and exact audience origin `https://sportmassagefuengirola.com`.
 4. Serve the public site and the independent Sport Massage editor at `/admin/blogger/` from the generated `.blogger-state/public/current` release, and route `/api/` plus the two admin authentication endpoints to the service without exposing its loopback port directly. Releases copy only the editor files allowlisted in `deploy/public-manifest.json`; never serve the checkout directly.
 5. Confirm `GET /.well-known/wf-blogger.json` returns discovery capabilities and `GET /api/blogger/health` returns `200` with redacted boolean checks. Health intentionally returns `503` when there is no active release, content/state permissions are unusable, or transaction recovery remains unresolved. Neither response contains credentials, paths, launch codes, or analytics identifiers.
 6. Verify direct login grants only the `blogger` scope, Studio launch records the `studio` audit origin, and logout invalidates the session. Unchecked direct and Studio sessions remain short-lived and memory-only. Checked direct sessions use a 30-day cookie and a permission-restricted `.blogger-state/sessions.json` record that survives service restart.
@@ -30,7 +30,7 @@ Each mutation snapshots content and writes `.blogger-state/transaction/journal.j
 
 ## Site identity compatibility
 
-The existing `.web-core/site.json` registry and panel route keep the historical `sportmassage` key. Blogger declares `sportmassagefuengirola` separately as its canonical Studio tenant and handoff audience, with `sportmassage` listed only as a discovery/configuration alias. Authentication remains fail-closed: the runtime sends and accepts only the canonical `sportmassagefuengirola` audience during the one-time Studio exchange.
+The existing `.web-core/site.json` registry and panel route keep the historical `sportmassage` key. Blogger declares `sportmassagefuengirola` as its canonical Studio site key and binds every ticket to the exact audience origin `https://sportmassagefuengirola.com`, with `sportmassage` listed only as a discovery/configuration alias. Authentication remains fail-closed during the one-time Studio exchange.
 
 ## Generated blog and verification
 
@@ -56,6 +56,7 @@ Before launch, provision permissions explicitly (adjust the checkout path only):
 chown -R sportmassage:www-data /srv/sportmassage/current/content/blog /srv/sportmassage/current/.blogger-state
 find /srv/sportmassage/current/content/blog /srv/sportmassage/current/.blogger-state -type d -exec chmod 0750 {} +
 find /srv/sportmassage/current/content/blog /srv/sportmassage/current/.blogger-state -type f -exec chmod 0640 {} +
+if [ -f /srv/sportmassage/current/.blogger-state/sessions.json ]; then chmod 0600 /srv/sportmassage/current/.blogger-state/sessions.json; fi
 ```
 
 Use the examples in `deploy/` as templates. Replace paths and the service account for the target host; do not commit the production environment file.

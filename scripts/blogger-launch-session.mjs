@@ -150,10 +150,13 @@ export function createSessionStore({
   }
 
   if (persistentStateInitialized) {
+    let descriptor;
     try {
-      const stat = fs.lstatSync(persistentFile);
-      if (!stat.isFile() || stat.isSymbolicLink()) throw new Error("invalid");
-      const state = JSON.parse(fs.readFileSync(persistentFile, "utf8"));
+      descriptor = fs.openSync(persistentFile, fs.constants.O_RDONLY | fs.constants.O_NOFOLLOW);
+      const stat = fs.fstatSync(descriptor);
+      if (!stat.isFile()) throw new Error("invalid");
+      fs.fchmodSync(descriptor, 0o600);
+      const state = JSON.parse(fs.readFileSync(descriptor, "utf8"));
       if (state.version !== 1 || !Array.isArray(state.records) || state.records.length > maxEntries) throw new Error("invalid");
       for (const record of state.records) {
         if (
@@ -170,6 +173,8 @@ export function createSessionStore({
       if (records.size !== before) persist();
     } catch {
       throw new Error("Persistent session state is invalid");
+    } finally {
+      if (descriptor !== undefined) fs.closeSync(descriptor);
     }
   }
 

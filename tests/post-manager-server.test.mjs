@@ -16,6 +16,18 @@ const editorSchema = await import("../admin/blogger/editor-schema.js").catch(() 
 const generator = await import("../scripts/generate-blog.mjs").catch(() => ({}));
 
 const password = "Massage-Blogger-Only-2026!";
+const handoffRequest = (code) => JSON.stringify({
+  protocol: "wf-blogger-handoff/v1",
+  code,
+  siteKey: "sportmassagefuengirola",
+});
+const handoffTicket = (overrides = {}) => ({
+  protocol: "wf-blogger-handoff/v1",
+  siteKey: "sportmassagefuengirola",
+  audience: "https://sportmassagefuengirola.com",
+  subject: { role: "client", userId: "user-1", clientId: "client-1", projectId: "project-1" },
+  ...overrides,
+});
 
 function fixture() {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "sportmassage-server-"));
@@ -243,8 +255,9 @@ test("Studio handoff exchanges the exact site audience and records studio origin
       exchangeRequest = { url, init, body: JSON.parse(init.body) };
       return Response.json({
         protocol: "wf-blogger-handoff/v1",
-        audience: "sportmassagefuengirola",
-        subject: { role: "client", userId: "user-1", projectId: "project-1" },
+        siteKey: "sportmassagefuengirola",
+        audience: "https://sportmassagefuengirola.com",
+        subject: { role: "client", userId: "user-1", clientId: "client-1", projectId: "project-1" },
       });
     },
   });
@@ -252,11 +265,15 @@ test("Studio handoff exchanges the exact site audience and records studio origin
   const response = await fetch(`${app.url}/admin/blogger/launch`, {
     method: "POST",
     headers: { "content-type": "application/json", origin: "http://127.0.0.1" },
-    body: JSON.stringify({ code: "A".repeat(43) }),
+    body: handoffRequest("A".repeat(43)),
   });
   assert.equal(response.status, 200, await response.clone().text());
   assert.equal(exchangeRequest.url, "https://studio.example.com/api/tool-launch/exchange");
-  assert.equal(exchangeRequest.body.audience, "sportmassagefuengirola");
+  assert.deepEqual(exchangeRequest.body, {
+    protocol: "wf-blogger-handoff/v1",
+    code: "A".repeat(43),
+    siteKey: "sportmassagefuengirola",
+  });
   assert.equal(exchangeRequest.init.headers.Authorization, `Bearer ${"handoff_7Nv!P3qR9mC2xW8kT5dL1yF6jH4sA0e"}`);
   const session = await fetch(`${app.url}/api/admin/session`, {
     headers: { cookie: cookie(response) },
@@ -268,19 +285,40 @@ test("Studio handoff exchanges the exact site audience and records studio origin
   assert.match(audit, /"origin":"studio"/);
 });
 
+test("handoff exchange serializers and validators enforce the exact v1 contract", () => {
+  assert.equal(typeof serverModule.serializeHandoffExchangeRequest, "function");
+  assert.equal(typeof serverModule.validateHandoffExchangeResponse, "function");
+  const code = "C".repeat(43);
+  assert.deepEqual(JSON.parse(serverModule.serializeHandoffExchangeRequest(code)), {
+    protocol: "wf-blogger-handoff/v1",
+    code,
+    siteKey: "sportmassagefuengirola",
+  });
+  const ticket = {
+    protocol: "wf-blogger-handoff/v1",
+    siteKey: "sportmassagefuengirola",
+    audience: "https://sportmassagefuengirola.com",
+    subject: { role: "admin", userId: "user-1", clientId: null, projectId: "project-1" },
+  };
+  assert.deepEqual(serverModule.validateHandoffExchangeResponse(ticket), ticket.subject);
+  for (const invalid of [
+    { ...ticket, protocol: "wrong" },
+    { ...ticket, siteKey: "other" },
+    { ...ticket, audience: "sportmassagefuengirola" },
+    { ...ticket, extra: true },
+    { ...ticket, subject: { ...ticket.subject, role: "owner" } },
+  ]) assert.equal(serverModule.validateHandoffExchangeResponse(invalid), null);
+});
+
 test("Studio handoff rejects a response with the wrong protocol", async (t) => {
   const app = await listen({
-    fetchImpl: async () => Response.json({
-      protocol: "unexpected/v2",
-      audience: "sportmassagefuengirola",
-      subject: { role: "client", userId: "user-1" },
-    }),
+    fetchImpl: async () => Response.json(handoffTicket({ protocol: "unexpected/v2" })),
   });
   t.after(app.close);
   const response = await fetch(`${app.url}/admin/blogger/launch`, {
     method: "POST",
     headers: { "content-type": "application/json", origin: "http://127.0.0.1" },
-    body: JSON.stringify({ code: "A".repeat(43) }),
+    body: handoffRequest("A".repeat(43)),
   });
   assert.equal(response.status, 401);
   assert.deepEqual(await response.json(), { error: "invalid_or_expired_ticket" });
@@ -432,11 +470,11 @@ test("Studio launch exchange is bounded by per-IP, global and concurrency limits
   let exchanges = 0;
   const pending = new Promise((resolve) => { release = resolve; });
   const app = await listen({
-    handoffPerIpLimit: 2, handoffGlobalLimit: 2, maxConcurrentHandoffs: 1, maxHandoffResponseBytes: 128,
-    fetchImpl: async () => { exchanges += 1; if (exchanges === 1) await pending; return Response.json({ protocol: "wf-blogger-handoff/v1", audience: "sportmassagefuengirola", subject: { role: "client" } }); },
+    handoffPerIpLimit: 2, handoffGlobalLimit: 2, maxConcurrentHandoffs: 1, maxHandoffResponseBytes: 512,
+    fetchImpl: async () => { exchanges += 1; if (exchanges === 1) await pending; return Response.json(handoffTicket()); },
   });
   t.after(app.close);
-  const launch = (ip = "203.0.113.20") => fetch(`${app.url}/admin/blogger/launch`, { method:"POST", headers:{ "content-type":"application/json", origin:"http://127.0.0.1", "x-real-ip":ip }, body:JSON.stringify({ code:"A".repeat(43) }) });
+  const launch = (ip = "203.0.113.20") => fetch(`${app.url}/admin/blogger/launch`, { method:"POST", headers:{ "content-type":"application/json", origin:"http://127.0.0.1", "x-real-ip":ip }, body:handoffRequest("A".repeat(43)) });
   const first = launch(); await new Promise((resolve) => setTimeout(resolve, 30));
   const concurrent = await launch("203.0.113.21");
   release(); const firstResponse = await first;
@@ -445,7 +483,7 @@ test("Studio launch exchange is bounded by per-IP, global and concurrency limits
 
   const oversized = await listen({ maxHandoffResponseBytes: 64, fetchImpl: async () => new Response(JSON.stringify({ padding:"x".repeat(500) }), { status:200, headers:{ "content-type":"application/json" } }) });
   t.after(oversized.close);
-  const failed = await fetch(`${oversized.url}/admin/blogger/launch`, { method:"POST", headers:{ "content-type":"application/json", origin:"http://127.0.0.1" }, body:JSON.stringify({ code:"B".repeat(43) }) });
+  const failed = await fetch(`${oversized.url}/admin/blogger/launch`, { method:"POST", headers:{ "content-type":"application/json", origin:"http://127.0.0.1" }, body:handoffRequest("B".repeat(43)) });
   assert.equal(failed.status, 401); assert.deepEqual(await failed.json(), { error:"invalid_or_expired_ticket" });
 });
 
@@ -457,11 +495,7 @@ test("Studio launch reserves concurrency before reading the body and releases it
     maxConcurrentHandoffs: 1,
     fetchImpl: async () => {
       exchanges += 1;
-      return Response.json({
-        protocol: "wf-blogger-handoff/v1",
-        audience: "sportmassagefuengirola",
-        subject: { role: "client" },
-      });
+      return Response.json(handoffTicket());
     },
   });
   t.after(app.close);
@@ -483,7 +517,7 @@ test("Studio launch reserves concurrency before reading the body and releases it
   const concurrent = await fetch(`${app.url}/admin/blogger/launch`, {
     method: "POST",
     headers: { "content-type": "application/json", origin: "http://127.0.0.1" },
-    body: JSON.stringify({ code: "A".repeat(43) }),
+    body: handoffRequest("A".repeat(43)),
   });
   finishSlow();
   const slowStatus = await slowResponse;
@@ -492,16 +526,16 @@ test("Studio launch reserves concurrency before reading the body and releases it
   const afterParseError = await fetch(`${app.url}/admin/blogger/launch`, {
     method: "POST",
     headers: { "content-type": "application/json", origin: "http://127.0.0.1" },
-    body: JSON.stringify({ code: "B".repeat(43) }),
+    body: handoffRequest("B".repeat(43)),
   });
   assert.equal(afterParseError.status, 200);
   assert.equal(exchanges, 1);
 });
 
 test("Studio launch rate limits are independently enforced per IP and globally", async (t) => {
-  const ticket = () => Response.json({ protocol:"wf-blogger-handoff/v1", audience:"sportmassagefuengirola", subject:{ role:"client" } });
+  const ticket = () => Response.json(handoffTicket());
   const perIp = await listen({ handoffPerIpLimit:1, handoffGlobalLimit:10, fetchImpl:async()=>ticket() }); t.after(perIp.close);
-  const launch = (app, ip, code) => fetch(`${app.url}/admin/blogger/launch`, { method:"POST", headers:{ "content-type":"application/json", origin:"http://127.0.0.1", "x-real-ip":ip }, body:JSON.stringify({ code:code.repeat(43) }) });
+  const launch = (app, ip, code) => fetch(`${app.url}/admin/blogger/launch`, { method:"POST", headers:{ "content-type":"application/json", origin:"http://127.0.0.1", "x-real-ip":ip }, body:handoffRequest(code.repeat(43)) });
   assert.equal((await launch(perIp, "203.0.113.30", "A")).status, 200);
   assert.equal((await launch(perIp, "203.0.113.30", "B")).status, 429);
   assert.equal((await launch(perIp, "203.0.113.31", "C")).status, 200);
