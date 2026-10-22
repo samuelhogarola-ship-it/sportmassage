@@ -1,7 +1,9 @@
 import assert from "node:assert/strict";
-import { once } from "node:events";
+import { spawn } from "node:child_process";
+import { EventEmitter, once } from "node:events";
 import fs from "node:fs";
 import { request as httpRequest } from "node:http";
+import { createServer as createTcpServer } from "node:net";
 import os from "node:os";
 import path from "node:path";
 import test from "node:test";
@@ -14,6 +16,7 @@ const auth = await import("../scripts/blogger-launch-session.mjs").catch(
 );
 const editorSchema = await import("../admin/blogger/editor-schema.js").catch(() => ({}));
 const generator = await import("../scripts/generate-blog.mjs").catch(() => ({}));
+const repositoryRoot = path.resolve(import.meta.dirname, "..");
 
 const password = "Massage-Blogger-Only-2026!";
 const handoffRequest = (code) => JSON.stringify({
@@ -28,6 +31,106 @@ const handoffTicket = (overrides = {}) => ({
   subject: { role: "client", userId: "user-1", clientId: "client-1", projectId: "project-1" },
   ...overrides,
 });
+
+test("listen host defaults to loopback and accepts an explicit container address", () => {
+  assert.equal(serverModule.resolveListenHost(), "127.0.0.1");
+  assert.equal(serverModule.resolveListenHost("0.0.0.0"), "0.0.0.0");
+  assert.throws(() => serverModule.resolveListenHost("blogger.internal"), /HOST is invalid/);
+});
+
+test("client IP trusts a validated proxy header only for loopback or explicit proxy mode", () => {
+  const request = (peer, forwarded) => ({
+    socket: { remoteAddress: peer },
+    headers: forwarded === undefined ? {} : { "x-real-ip": forwarded },
+  });
+  assert.equal(serverModule.resolveClientKey(request("198.51.100.20", "203.0.113.8"), false), "198.51.100.20");
+  assert.equal(serverModule.resolveClientKey(request("198.51.100.20", "203.0.113.8"), true), "203.0.113.8");
+  assert.equal(serverModule.resolveClientKey(request("127.0.0.1", "203.0.113.9"), false), "203.0.113.9");
+  assert.equal(serverModule.resolveClientKey(request("198.51.100.20", "not-an-ip"), true), "198.51.100.20");
+  assert.equal(serverModule.resolveClientKey(request("198.51.100.20", "203.0.113.8, 203.0.113.9"), true), "198.51.100.20");
+});
+
+test("graceful shutdown forces termination after its timeout", async () => {
+  const signals = new EventEmitter();
+  let closeCalls = 0;
+  let forcedConnections = 0;
+  let exitCode = null;
+  const server = {
+    close() { closeCalls += 1; },
+    closeAllConnections() { forcedConnections += 1; },
+  };
+  serverModule.installGracefulShutdown(server, {
+    signalSource: signals,
+    timeoutMs: 10,
+    forceExit(code) { exitCode = code; },
+  });
+  signals.emit("SIGTERM");
+  await new Promise((resolve) => setTimeout(resolve, 30));
+  assert.equal(closeCalls, 1);
+  assert.equal(forcedConnections, 1);
+  assert.equal(exitCode, 1);
+});
+
+async function reservePort() {
+  const reservation = createTcpServer();
+  await new Promise((resolve, reject) => {
+    reservation.once("error", reject);
+    reservation.listen(0, "127.0.0.1", resolve);
+  });
+  const port = reservation.address().port;
+  await new Promise((resolve) => reservation.close(resolve));
+  return port;
+}
+
+async function waitForOutput(stream, expected) {
+  let output = "";
+  for await (const chunk of stream) {
+    output += chunk;
+    if (output.includes(expected)) return output;
+  }
+  throw new Error(`Process ended before output: ${expected}`);
+}
+
+for (const signal of ["SIGTERM", "SIGINT"]) {
+  test(`standalone server closes cleanly on ${signal}`, async (t) => {
+    const runtime = fs.mkdtempSync(path.join(repositoryRoot, ".shutdown-test-"));
+    t.after(() => fs.rmSync(runtime, { recursive: true, force: true }));
+    const port = await reservePort();
+    const passwordHash = await auth.generatePasswordHash(password);
+    const relativeRuntime = path.relative(repositoryRoot, runtime);
+    const child = spawn(process.execPath, ["scripts/post-manager-server.mjs"], {
+      cwd: repositoryRoot,
+      stdio: ["ignore", "pipe", "pipe"],
+      env: {
+        ...process.env,
+        NODE_ENV: "test",
+        HOST: "127.0.0.1",
+        PORT: String(port),
+        BLOGGER_PUBLIC_ORIGIN: "https://sportmassagefuengirola.com",
+        BLOGGER_STUDIO_ORIGIN: "https://studio.example.com",
+        BLOGGER_STUDIO_EXCHANGE_URL: "https://studio.example.com/api/tool-launch/exchange",
+        BLOGGER_DIRECT_USERNAME: "sportsmassage",
+        BLOGGER_DIRECT_PASSWORD_HASH: passwordHash,
+        BLOGGER_SESSION_SECRET: "session_4Yz!Q9mP2vK7xN5cR8tL3wD6hF1sJ0aB",
+        BLOGGER_HANDOFF_SECRET: "handoff_7Nv!P3qR9mC2xW8kT5dL1yF6jH4sA0e",
+        BLOGGER_TEST_ORIGIN: "http://127.0.0.1",
+        BLOGGER_CONTENT_ROOT: path.join(relativeRuntime, "content/blog"),
+        BLOGGER_MEDIA_ROOT: path.join(relativeRuntime, "content/blog/media"),
+        BLOGGER_STATE_DIR: path.join(relativeRuntime, "state"),
+        BLOGGER_OUTPUT_ROOT: path.join(relativeRuntime, "state/public"),
+      },
+    });
+    t.after(() => {
+      if (child.exitCode === null && child.signalCode === null) child.kill("SIGKILL");
+    });
+    const expected = `Sport Massage Blogger listening on 127.0.0.1:${port}`;
+    await waitForOutput(child.stdout, expected);
+    child.kill(signal);
+    const [code, exitSignal] = await once(child, "exit");
+    assert.equal(code, 0);
+    assert.equal(exitSignal, null);
+  });
+}
 
 function fixture() {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "sportmassage-server-"));

@@ -1,0 +1,64 @@
+services:
+  blogger:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    stop_grace_period: 40s
+    expose:
+      - "8787"
+    environment:
+      NODE_ENV: production
+      HOST: "0.0.0.0"
+      PORT: "8787"
+      BLOGGER_TRUST_PROXY: "true"
+      BLOGGER_PUBLIC_ORIGIN: https://sportmassagefuengirola.com
+      BLOGGER_STUDIO_ORIGIN: "${BLOGGER_STUDIO_ORIGIN:?Set BLOGGER_STUDIO_ORIGIN in Coolify}"
+      BLOGGER_STUDIO_EXCHANGE_URL: "${BLOGGER_STUDIO_EXCHANGE_URL:?Set BLOGGER_STUDIO_EXCHANGE_URL in Coolify}"
+      BLOGGER_DIRECT_USERNAME: sportsmassage
+      BLOGGER_DIRECT_PASSWORD_HASH: "${BLOGGER_DIRECT_PASSWORD_HASH:?Set BLOGGER_DIRECT_PASSWORD_HASH in Coolify}"
+      BLOGGER_SESSION_SECRET: "${BLOGGER_SESSION_SECRET:?Set BLOGGER_SESSION_SECRET in Coolify}"
+      BLOGGER_HANDOFF_SECRET: "${BLOGGER_HANDOFF_SECRET:?Set BLOGGER_HANDOFF_SECRET in Coolify}"
+      BLOGGER_CONTENT_ROOT: content/blog
+      BLOGGER_MEDIA_ROOT: content/blog/media
+      BLOGGER_STATE_DIR: .blogger-state
+      BLOGGER_OUTPUT_ROOT: .blogger-state/public
+      UMAMI_WEBSITE_ID: "${UMAMI_WEBSITE_ID:-}"
+      UMAMI_SCRIPT_URL: "${UMAMI_SCRIPT_URL:-}"
+      UMAMI_PRODUCTION_VERIFIED: "${UMAMI_PRODUCTION_VERIFIED:-false}"
+    volumes:
+      - sportmassage_blog_content:/app/content/blog
+      - sportmassage_blogger_state:/app/.blogger-state
+      - sportmassage_blogger_public:/app/.blogger-state/public
+    networks:
+      - blogger_internal
+      - blogger_egress
+
+  proxy:
+    build:
+      context: .
+      dockerfile: Dockerfile.nginx
+    restart: unless-stopped
+    stop_signal: SIGQUIT
+    stop_grace_period: 40s
+    depends_on:
+      blogger:
+        condition: service_healthy
+    expose:
+      - "8080"
+    volumes:
+      - sportmassage_blogger_public:/usr/share/nginx/html:ro
+    networks:
+      - blogger_internal
+      - web
+
+volumes:
+  sportmassage_blog_content:
+  sportmassage_blogger_state:
+  sportmassage_blogger_public:
+
+networks:
+  blogger_internal:
+    internal: true
+  blogger_egress:
+  web:
