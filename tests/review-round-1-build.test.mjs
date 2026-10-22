@@ -56,7 +56,16 @@ test("site releases inject Umami everywhere public only after explicit productio
   assert.match(fs.readFileSync(path.join(enabled, "legal.html"), "utf8"), /Umami analytics is active/);
   assert.doesNotMatch(fs.readFileSync(path.join(enabled, "legal.html"), "utf8"), /currently disabled/);
   const bloggerEntry = fs.readFileSync(path.join(enabled, "admin/blogger/index.html"), "utf8");
-  assert.match(bloggerEntry, /https:\/\/admin\.webfuengirola\.com\/cliente\/proyectos\/sportmassagefuengirola\/blogger/);
+  const directBloggerUrl = "https://admin.webfuengirola.com/acceso/blogger/sportmassagefuengirola";
+  const refreshTag = [...bloggerEntry.matchAll(/<meta\b([^>]*)>/gi)]
+    .find(([, attributes]) => /\bhttp-equiv="refresh"/i.test(attributes));
+  const refreshContent = refreshTag?.[1].match(/\bcontent="([^"]*)"/i)?.[1];
+  const refreshDestination = refreshContent?.match(/^\s*0\s*;\s*url=(.+)\s*$/i)?.[1];
+  assert.equal(refreshDestination, directBloggerUrl);
+  const fallbackAnchor = bloggerEntry.match(/<a\b([^>]*)>\s*Abrir Blogger\s*<\/a>/i);
+  const fallbackHref = fallbackAnchor?.[1].match(/\bhref="([^"]*)"/i)?.[1];
+  assert.equal(fallbackHref, directBloggerUrl);
+  assert.doesNotMatch(bloggerEntry, /\/cliente\/proyectos\/sportmassagefuengirola\/blogger/);
   assert.doesNotMatch(bloggerEntry, /\/api\/|admin\/blogger\/login/);
   assert.doesNotMatch(bloggerEntry, /data-website-id|analytics\.example/);
   assert.equal(fs.existsSync(path.join(enabled, "admin/blogger/app.js")), false);
