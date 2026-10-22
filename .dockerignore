@@ -1,0 +1,10 @@
+.git/
+.github/
+.env
+.env.*
+.blogger-state/
+content/blog/
+node_modules/
+npm-debug.log*
+docs/
+tests/

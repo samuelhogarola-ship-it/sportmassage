@@ -1,0 +1,56 @@
+worker_processes auto;
+pid ${NGINX_PID};
+error_log /dev/stderr warn;
+
+events {
+    worker_connections 1024;
+}
+
+http {
+    include /etc/nginx/mime.types;
+    default_type application/octet-stream;
+    access_log /dev/stdout;
+    sendfile on;
+    server_tokens off;
+
+    server {
+        listen ${NGINX_LISTEN};
+        root ${PUBLIC_ROOT};
+        client_max_body_size 14m;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+
+        location = /admin/blogger {
+            return 308 /admin/blogger/;
+        }
+
+        location = /admin/blogger/login {
+            proxy_pass http://${BLOGGER_UPSTREAM};
+            add_header Cache-Control "no-store" always;
+        }
+
+        location = /admin/blogger/launch {
+            proxy_pass http://${BLOGGER_UPSTREAM};
+            add_header Cache-Control "no-store" always;
+        }
+
+        location /admin/blogger/ {
+            add_header Content-Security-Policy "default-src 'none'; script-src 'self'; style-src 'self'; connect-src 'self'; img-src 'self' data: blob:; base-uri 'none'; form-action 'self'; frame-ancestors 'none'; object-src 'none'" always;
+            add_header X-Frame-Options "DENY" always;
+            add_header X-Content-Type-Options "nosniff" always;
+            add_header Referrer-Policy "no-referrer" always;
+            add_header Cache-Control "no-store" always;
+            try_files $uri $uri/ =404;
+        }
+
+        location ~ ^/(api/admin|api/blogger|api/posts|api/build|\.well-known/wf-blogger\.json) {
+            proxy_pass http://${BLOGGER_UPSTREAM};
+        }
+
+        location / {
+            try_files $uri $uri/ $uri/index.html =404;
+        }
+    }
+}
