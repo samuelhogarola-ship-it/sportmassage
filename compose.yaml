@@ -1,13 +1,14 @@
 services:
-  sportmassage:
+  blogger:
     build:
       context: .
       dockerfile: Dockerfile
     restart: unless-stopped
     expose:
-      - "8080"
+      - "8787"
     environment:
       NODE_ENV: production
+      HOST: "0.0.0.0"
       PORT: "8787"
       BLOGGER_PUBLIC_ORIGIN: https://sportmassagefuengirola.com
       BLOGGER_STUDIO_ORIGIN: "${BLOGGER_STUDIO_ORIGIN:?Set BLOGGER_STUDIO_ORIGIN in Coolify}"
@@ -26,7 +27,32 @@ services:
     volumes:
       - sportmassage_blog_content:/app/content/blog
       - sportmassage_blogger_state:/app/.blogger-state
+      - sportmassage_blogger_public:/app/.blogger-state/public
+    networks:
+      - blogger_internal
+
+  proxy:
+    build:
+      context: .
+      dockerfile: Dockerfile.nginx
+    restart: unless-stopped
+    depends_on:
+      blogger:
+        condition: service_healthy
+    expose:
+      - "8080"
+    volumes:
+      - sportmassage_blogger_public:/usr/share/nginx/html:ro
+    networks:
+      - blogger_internal
+      - web
 
 volumes:
   sportmassage_blog_content:
   sportmassage_blogger_state:
+  sportmassage_blogger_public:
+
+networks:
+  blogger_internal:
+    internal: true
+  web:

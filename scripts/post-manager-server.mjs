@@ -84,6 +84,46 @@ function positiveInteger(value, fallback, maximum, label) {
   return parsed;
 }
 
+export function resolveListenHost(value) {
+  const host = value?.trim() || "127.0.0.1";
+  if (!isIP(host)) throw new Error("HOST is invalid");
+  return host;
+}
+
+export function installGracefulShutdown(server, {
+  signalSource = process,
+  timeoutMs = 30_000,
+  forceExit = (code) => process.exit(code),
+} = {}) {
+  let stopping = false;
+  let timer;
+  const cleanup = () => {
+    signalSource.removeListener("SIGTERM", shutdown);
+    signalSource.removeListener("SIGINT", shutdown);
+  };
+  const shutdown = () => {
+    if (stopping) return;
+    stopping = true;
+    timer = setTimeout(() => {
+      server.closeAllConnections?.();
+      forceExit(1);
+    }, timeoutMs);
+    timer.unref?.();
+    server.close((error) => {
+      clearTimeout(timer);
+      cleanup();
+      if (error) {
+        forceExit(1);
+        return;
+      }
+      signalSource.exitCode = 0;
+    });
+  };
+  signalSource.once("SIGTERM", shutdown);
+  signalSource.once("SIGINT", shutdown);
+  return cleanup;
+}
+
 function readConfiguration(projectRoot, env) {
   const root = path.resolve(projectRoot);
   const secretConfiguration = {
@@ -559,7 +599,10 @@ if (invoked) {
   const root = path.resolve(fileURLToPath(new URL("..", import.meta.url)));
   const server = createPostManagerServer({ projectRoot: root });
   const port = positiveInteger(process.env.PORT, 8787, 65535, "PORT");
-  server.listen(port, "127.0.0.1", () => {
-    process.stdout.write(`Sport Massage Blogger listening on 127.0.0.1:${port}\n`);
+  const host = resolveListenHost(process.env.HOST);
+  const shutdownTimeoutMs = positiveInteger(process.env.BLOGGER_SHUTDOWN_TIMEOUT_MS, 30_000, 120_000, "Shutdown timeout");
+  installGracefulShutdown(server, { timeoutMs: shutdownTimeoutMs });
+  server.listen(port, host, () => {
+    process.stdout.write(`Sport Massage Blogger listening on ${host}:${port}\n`);
   });
 }
