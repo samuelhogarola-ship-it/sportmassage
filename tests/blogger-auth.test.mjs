@@ -1,5 +1,8 @@
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
 import test from "node:test";
 
 const auth = await import("../scripts/blogger-launch-session.mjs").catch(
@@ -52,6 +55,18 @@ test("session store expires records and stays bounded", () => {
   now += 101;
   assert.equal(store.get(second), null);
   assert.equal(store.size, 0);
+});
+
+test("opening an existing regular persistent session file repairs its mode to 0600", () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "blogger-session-mode-"));
+  const persistentFile = path.join(root, "sessions.json");
+  fs.writeFileSync(persistentFile, '{"version":1,"records":[]}\n', { mode: 0o666 });
+  fs.chmodSync(persistentFile, 0o666);
+  auth.createSessionStore({
+    persistentFile,
+    secret: "session_4Yz!Q9mP2vK7xN5cR8tL3wD6hF1sJ0aB",
+  });
+  assert.equal(fs.statSync(persistentFile).mode & 0o777, 0o600);
 });
 
 test("rate limiter is bounded and resets after its window", () => {

@@ -1,13 +1,17 @@
 import assert from "node:assert/strict";
+import fs from "node:fs";
+import path from "node:path";
 import test from "node:test";
 
 const browserAuth = await import("../admin/blogger/blogger-auth-core.js").catch(() => ({}));
+const root = path.resolve(import.meta.dirname, "..");
 
 test("Studio launch codes are consumed from the URL fragment and sent only in a POST body", async () => {
   assert.equal(typeof browserAuth.consumeStudioLaunchFragment, "function");
+  const code = "A".repeat(43);
   const requests = [];
   const replacements = [];
-  const location = { href: "https://sportmassagefuengirola.com/admin/blogger/#code=A_secret_launch_code" };
+  const location = { href: `https://sportmassagefuengirola.com/admin/blogger/#protocol=wf-blogger-handoff%2Fv1&code=${code}&siteKey=sportmassagefuengirola` };
   const consumed = await browserAuth.consumeStudioLaunchFragment({
     location,
     replaceUrl: (value) => replacements.push(value),
@@ -17,8 +21,28 @@ test("Studio launch codes are consumed from the URL fragment and sent only in a 
   assert.deepEqual(replacements, ["/admin/blogger/"]);
   assert.equal(requests[0].url, "/admin/blogger/launch");
   assert.equal(requests[0].options.method, "POST");
-  assert.deepEqual(JSON.parse(requests[0].options.body), { code: "A_secret_launch_code" });
-  assert.equal(requests[0].url.includes("A_secret_launch_code"), false);
+  assert.deepEqual(JSON.parse(requests[0].options.body), {
+    protocol: "wf-blogger-handoff/v1",
+    code,
+    siteKey: "sportmassagefuengirola",
+  });
+  assert.equal(requests[0].url.includes(code), false);
+});
+
+test("Studio launch fragments fail closed unless protocol, code and siteKey match the exact contract", async () => {
+  assert.equal(typeof browserAuth.parseStudioLaunchFragment, "function");
+  const code = "B".repeat(43);
+  assert.deepEqual(browserAuth.parseStudioLaunchFragment(`https://sportmassagefuengirola.com/admin/blogger/#protocol=wf-blogger-handoff%2Fv1&code=${code}&siteKey=sportmassagefuengirola`), {
+    protocol: "wf-blogger-handoff/v1",
+    code,
+    siteKey: "sportmassagefuengirola",
+  });
+  for (const fragment of [
+    `protocol=wrong&code=${code}&siteKey=sportmassagefuengirola`,
+    `protocol=wf-blogger-handoff%2Fv1&code=short&siteKey=sportmassagefuengirola`,
+    `protocol=wf-blogger-handoff%2Fv1&code=${code}&siteKey=other`,
+    `protocol=wf-blogger-handoff%2Fv1&code=${code}&siteKey=sportmassagefuengirola&extra=1`,
+  ]) assert.equal(browserAuth.parseStudioLaunchFragment(`https://sportmassagefuengirola.com/admin/blogger/#${fragment}`), null);
 });
 
 test("query-string launch codes are ignored so they cannot be propagated through request targets", async () => {
@@ -43,4 +67,40 @@ test("authenticated Blogger API requests use the HttpOnly session cookie without
   assert.equal(observed.options.credentials, "same-origin");
   assert.equal("Authorization" in observed.options.headers, false);
   assert.equal(observed.options.headers["Content-Type"], "application/json");
+});
+
+test("paste normalization preserves common formatting and rejects active content", () => {
+  assert.equal(typeof browserAuth.normalizePastedHtml, "function");
+  const normalized = browserAuth.normalizePastedHtml('<h2 onclick="steal()">Recovery</h2><p>Use <strong>gentle</strong> <em>pressure</em>.</p><script>steal()</script><a href="javascript:steal()" onmouseover="steal()">unsafe</a><ul><li>Hydrate</li></ul>');
+  assert.match(normalized, /<h2>Recovery<\/h2>/);
+  assert.match(normalized, /<strong>gentle<\/strong>/);
+  assert.match(normalized, /<em>pressure<\/em>/);
+  assert.match(normalized, /<ul><li>Hydrate<\/li><\/ul>/);
+  assert.doesNotMatch(normalized, /script|onclick|onmouseover|javascript:/i);
+});
+
+test("login and mobile editor markup expose remembered access and touch-safe responsive controls", () => {
+  const html = fs.readFileSync(path.join(root, "admin/blogger/index.html"), "utf8");
+  const css = fs.readFileSync(path.join(root, "admin/blogger/styles.css"), "utf8");
+  const authScript = fs.readFileSync(path.join(root, "admin/blogger/blogger-auth.js"), "utf8");
+  assert.match(html, /name="username"[^>]*autocomplete="username"/);
+  assert.match(html, /name="password"[^>]*autocomplete="current-password"/);
+  assert.match(html, /name="remember"[^>]*type="checkbox"[^>]*checked/);
+  assert.match(html, /Recordarme en este dispositivo/);
+  assert.match(authScript, /remember:\s*loginForm\.elements\.remember\.checked/);
+  assert.match(authScript, /addEventListener\("paste"/);
+  assert.match(css, /min-height:\s*44px/);
+  assert.match(css, /font-size:\s*16px/);
+  assert.match(css, /overflow-x:\s*(?:auto|hidden)/);
+  assert.match(css, /position:\s*sticky/);
+  assert.match(css, /bottom:\s*0/);
+  assert.doesNotMatch(css, /display:\s*inline-flex;\s*$/);
+});
+
+test("the login form falls back to same-origin POST when JavaScript is unavailable", () => {
+  const html = fs.readFileSync(path.join(root, "admin/blogger/index.html"), "utf8");
+  const form = html.match(/<form\b[^>]*id="bloggerLoginForm"[^>]*>/i)?.[0] ?? "";
+  assert.match(form, /\bmethod="post"/i);
+  assert.match(form, /\baction="\/admin\/blogger\/login"/i);
+  assert.doesNotMatch(form, /\bmethod="get"/i);
 });

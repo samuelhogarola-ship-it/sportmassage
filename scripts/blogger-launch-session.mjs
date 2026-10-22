@@ -83,6 +83,8 @@ export function validateRuntimeSecrets(env) {
 export function createSessionStore({
   maxEntries = 256,
   ttlMs = 8 * 60 * 60 * 1_000,
+  rememberedTtlMs = 30 * 24 * 60 * 60 * 1_000,
+  persistentFile,
   now = Date.now,
   secret,
 } = {}) {
@@ -93,13 +95,47 @@ export function createSessionStore({
   if (!Number.isInteger(ttlMs) || ttlMs < 1 || ttlMs > 24 * 60 * 60 * 1_000) {
     throw new Error("Session TTL is invalid");
   }
+  if (!Number.isInteger(rememberedTtlMs) || rememberedTtlMs < ttlMs || rememberedTtlMs > 30 * 24 * 60 * 60 * 1_000) {
+    throw new Error("Remembered session TTL is invalid");
+  }
   const records = new Map();
+  let persistentStateInitialized = Boolean(persistentFile && fs.existsSync(persistentFile));
 
-  function prune() {
-    const current = now();
-    for (const [id, record] of records) {
-      if (record.expiresAt <= current) records.delete(id);
+  function persistentRecords() {
+    return [...records].filter(([, record]) => record.remembered).map(([id, record]) => ({ id, ...record }));
+  }
+
+  function persist() {
+    if (!persistentFile || (!persistentStateInitialized && !persistentRecords().length)) return;
+    persistentStateInitialized = true;
+    const directory = path.dirname(persistentFile);
+    fs.mkdirSync(directory, { recursive: true, mode: 0o750 });
+    const temporary = path.join(directory, `.sessions-${process.pid}-${randomBytes(8).toString("hex")}.tmp`);
+    let descriptor;
+    try {
+      descriptor = fs.openSync(temporary, "wx", 0o600);
+      fs.writeFileSync(descriptor, `${JSON.stringify({ version: 1, records: persistentRecords() })}\n`);
+      fs.fsyncSync(descriptor);
+      fs.closeSync(descriptor);
+      descriptor = undefined;
+      fs.renameSync(temporary, persistentFile);
+      fs.chmodSync(persistentFile, 0o600);
+    } finally {
+      if (descriptor !== undefined) fs.closeSync(descriptor);
+      try { fs.unlinkSync(temporary); } catch (error) { if (error?.code !== "ENOENT") throw error; }
     }
+  }
+
+  function prune({ write = true } = {}) {
+    const current = now();
+    let changed = false;
+    for (const [id, record] of records) {
+      if (record.expiresAt <= current) {
+        records.delete(id);
+        changed ||= record.remembered === true;
+      }
+    }
+    if (changed && write) persist();
   }
 
   function sign(id) {
@@ -113,20 +149,56 @@ export function createSessionStore({
     return id;
   }
 
+  if (persistentStateInitialized) {
+    let descriptor;
+    try {
+      descriptor = fs.openSync(persistentFile, fs.constants.O_RDONLY | fs.constants.O_NOFOLLOW);
+      const stat = fs.fstatSync(descriptor);
+      if (!stat.isFile()) throw new Error("invalid");
+      fs.fchmodSync(descriptor, 0o600);
+      const state = JSON.parse(fs.readFileSync(descriptor, "utf8"));
+      if (state.version !== 1 || !Array.isArray(state.records) || state.records.length > maxEntries) throw new Error("invalid");
+      for (const record of state.records) {
+        if (
+          !record || typeof record !== "object" || Array.isArray(record) ||
+          !/^[A-Za-z0-9_-]{32}$/.test(record.id ?? "") ||
+          record.remembered !== true || !Number.isSafeInteger(record.createdAt) ||
+          !Number.isSafeInteger(record.expiresAt) || record.expiresAt <= record.createdAt
+        ) throw new Error("invalid");
+        const { id, ...data } = record;
+        records.set(id, structuredClone(data));
+      }
+      const before = records.size;
+      prune({ write: false });
+      if (records.size !== before) persist();
+    } catch {
+      throw new Error("Persistent session state is invalid");
+    } finally {
+      if (descriptor !== undefined) fs.closeSync(descriptor);
+    }
+  }
+
   return {
     get size() {
       prune();
       return records.size;
     },
-    create(data) {
+    create(data, { remembered = false } = {}) {
       prune();
-      while (records.size >= maxEntries) records.delete(records.keys().next().value);
+      let persistentChanged = false;
+      while (records.size >= maxEntries) {
+        const oldest = records.keys().next().value;
+        persistentChanged ||= records.get(oldest)?.remembered === true;
+        records.delete(oldest);
+      }
       const id = randomBytes(24).toString("base64url");
       records.set(id, {
         ...structuredClone(data),
         createdAt: now(),
-        expiresAt: now() + ttlMs,
+        expiresAt: now() + (remembered ? rememberedTtlMs : ttlMs),
+        remembered,
       });
+      if (remembered || persistentChanged) persist();
       return `${id}.${sign(id)}`;
     },
     get(token) {
@@ -138,7 +210,11 @@ export function createSessionStore({
     },
     destroy(token) {
       const id = parse(token);
-      return id ? records.delete(id) : false;
+      if (!id) return false;
+      const record = records.get(id);
+      const deleted = records.delete(id);
+      if (deleted && record?.remembered) persist();
+      return deleted;
     },
   };
 }
