@@ -74,3 +74,11 @@ test("login and mobile editor markup expose remembered access and touch-safe res
   assert.match(css, /position:\s*sticky/);
   assert.match(css, /bottom:\s*0/);
 });
+
+test("the login form falls back to same-origin POST when JavaScript is unavailable", () => {
+  const html = fs.readFileSync(path.join(root, "admin/blogger/index.html"), "utf8");
+  const form = html.match(/<form\b[^>]*id="bloggerLoginForm"[^>]*>/i)?.[0] ?? "";
+  assert.match(form, /\bmethod="post"/i);
+  assert.match(form, /\baction="\/admin\/blogger\/login"/i);
+  assert.doesNotMatch(form, /\bmethod="get"/i);
+});
