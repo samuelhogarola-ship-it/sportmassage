@@ -84,6 +84,13 @@ function positiveInteger(value, fallback, maximum, label) {
   return parsed;
 }
 
+function booleanFlag(value, fallback, label) {
+  if (value === undefined || value === "") return fallback;
+  if (value === "true") return true;
+  if (value === "false") return false;
+  throw new Error(`${label} is invalid`);
+}
+
 export function resolveListenHost(value) {
   const host = value?.trim() || "127.0.0.1";
   if (!isIP(host)) throw new Error("HOST is invalid");
@@ -157,6 +164,7 @@ function readConfiguration(projectRoot, env) {
     handoffSecret,
     username,
     passwordHash,
+    trustProxy: booleanFlag(env.BLOGGER_TRUST_PROXY, false, "BLOGGER_TRUST_PROXY"),
     stateDirectory,
     contentRoot: configuredPath(root, env.BLOGGER_CONTENT_ROOT, "content/blog", "Content root"),
     mediaRoot: configuredPath(root, env.BLOGGER_MEDIA_ROOT, "content/blog/media", "Media root"),
@@ -239,11 +247,11 @@ function requireOrigin(request, expected) {
   if (request.headers.origin !== expected) throw new RequestError(403, "forbidden");
 }
 
-function clientKey(request) {
+export function resolveClientKey(request, trustProxy = false) {
   const peer = request.socket.remoteAddress ?? "unknown";
   const forwarded = request.headers["x-real-ip"];
   const loopback = ["127.0.0.1", "::1", "::ffff:127.0.0.1"].includes(peer);
-  if (loopback && typeof forwarded === "string" && forwarded.length <= 45 && isIP(forwarded)) {
+  if ((loopback || trustProxy) && typeof forwarded === "string" && forwarded.length <= 45 && isIP(forwarded)) {
     return forwarded;
   }
   return peer;
@@ -427,7 +435,7 @@ export function createPostManagerServer({
 
       if (method === "POST" && url.pathname === "/admin/blogger/login") {
         requireOrigin(request, config.mutationOrigin);
-        const attempt = limiter.consume(clientKey(request));
+        const attempt = limiter.consume(resolveClientKey(request, config.trustProxy));
         if (!attempt.allowed) {
           json(response, 429, { error: "authentication_failed" }, { "Retry-After": String(attempt.retryAfterSeconds) });
           return;
@@ -456,7 +464,7 @@ export function createPostManagerServer({
       if (method === "POST" && url.pathname === "/admin/blogger/launch") {
         requireOrigin(request, config.mutationOrigin);
         if (activeHandoffs >= maxConcurrentHandoffs) { json(response, 429, { error: "launch_unavailable" }); return; }
-        const ipAttempt = handoffIpLimiter.consume(clientKey(request));
+        const ipAttempt = handoffIpLimiter.consume(resolveClientKey(request, config.trustProxy));
         if (!ipAttempt.allowed) { json(response, 429, { error: "launch_unavailable" }); return; }
         const globalAttempt = handoffGlobalLimiter.consume("global");
         if (!globalAttempt.allowed) { json(response, 429, { error: "launch_unavailable" }); return; }

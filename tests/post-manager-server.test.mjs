@@ -38,6 +38,18 @@ test("listen host defaults to loopback and accepts an explicit container address
   assert.throws(() => serverModule.resolveListenHost("blogger.internal"), /HOST is invalid/);
 });
 
+test("client IP trusts a validated proxy header only for loopback or explicit proxy mode", () => {
+  const request = (peer, forwarded) => ({
+    socket: { remoteAddress: peer },
+    headers: forwarded === undefined ? {} : { "x-real-ip": forwarded },
+  });
+  assert.equal(serverModule.resolveClientKey(request("198.51.100.20", "203.0.113.8"), false), "198.51.100.20");
+  assert.equal(serverModule.resolveClientKey(request("198.51.100.20", "203.0.113.8"), true), "203.0.113.8");
+  assert.equal(serverModule.resolveClientKey(request("127.0.0.1", "203.0.113.9"), false), "203.0.113.9");
+  assert.equal(serverModule.resolveClientKey(request("198.51.100.20", "not-an-ip"), true), "198.51.100.20");
+  assert.equal(serverModule.resolveClientKey(request("198.51.100.20", "203.0.113.8, 203.0.113.9"), true), "198.51.100.20");
+});
+
 test("graceful shutdown forces termination after its timeout", async () => {
   const signals = new EventEmitter();
   let closeCalls = 0;

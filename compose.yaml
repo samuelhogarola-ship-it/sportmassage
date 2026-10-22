@@ -4,12 +4,14 @@ services:
       context: .
       dockerfile: Dockerfile
     restart: unless-stopped
+    stop_grace_period: 40s
     expose:
       - "8787"
     environment:
       NODE_ENV: production
       HOST: "0.0.0.0"
       PORT: "8787"
+      BLOGGER_TRUST_PROXY: "true"
       BLOGGER_PUBLIC_ORIGIN: https://sportmassagefuengirola.com
       BLOGGER_STUDIO_ORIGIN: "${BLOGGER_STUDIO_ORIGIN:?Set BLOGGER_STUDIO_ORIGIN in Coolify}"
       BLOGGER_STUDIO_EXCHANGE_URL: "${BLOGGER_STUDIO_EXCHANGE_URL:?Set BLOGGER_STUDIO_EXCHANGE_URL in Coolify}"
@@ -30,13 +32,15 @@ services:
       - sportmassage_blogger_public:/app/.blogger-state/public
     networks:
       - blogger_internal
-      - web
+      - blogger_egress
 
   proxy:
     build:
       context: .
       dockerfile: Dockerfile.nginx
     restart: unless-stopped
+    stop_signal: SIGQUIT
+    stop_grace_period: 40s
     depends_on:
       blogger:
         condition: service_healthy
@@ -56,4 +60,5 @@ volumes:
 networks:
   blogger_internal:
     internal: true
+  blogger_egress:
   web:

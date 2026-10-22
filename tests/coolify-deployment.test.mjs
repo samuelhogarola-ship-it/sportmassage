@@ -32,12 +32,15 @@ test("Compose isolates Blogger writes from the read-only public proxy", () => {
   assert.doesNotMatch(compose, /^\s*ports:/m);
 });
 
-test("Compose gives Blogger an internal service network and a separate egress network", () => {
+test("Compose gives Blogger a dedicated egress network without direct ingress", () => {
   const compose = read("compose.yaml");
   assert.match(compose, /blogger_internal:\s*\n\s*internal: true/);
-  assert.doesNotMatch(compose, /web:\s*\n\s*internal: true/);
-  assert.match(composeService(compose, "blogger", "proxy"), /networks:\s*\n\s*- blogger_internal\s*\n\s*- web/);
+  assert.match(compose, /blogger_egress:\s*(?:\n|$)/);
+  assert.doesNotMatch(compose, /blogger_egress:\s*\n\s*internal: true/);
+  assert.match(composeService(compose, "blogger", "proxy"), /networks:\s*\n\s*- blogger_internal\s*\n\s*- blogger_egress/);
   assert.match(composeService(compose, "proxy", "unused"), /networks:\s*\n\s*- blogger_internal\s*\n\s*- web/);
+  assert.doesNotMatch(composeService(compose, "blogger", "proxy"), /- web/);
+  assert.doesNotMatch(composeService(compose, "proxy", "unused"), /- blogger_egress/);
   assert.doesNotMatch(compose, /^\s*ports:/m);
   assert.doesNotMatch(compose, /^\s*labels:/m);
 });
@@ -47,6 +50,16 @@ test("Compose requires runtime secrets without embedding their values", () => {
   for (const name of ["BLOGGER_DIRECT_PASSWORD_HASH", "BLOGGER_SESSION_SECRET", "BLOGGER_HANDOFF_SECRET"]) {
     assert.match(compose, new RegExp(`${name}: ["']?\\x24\\{${name}:\\?`));
   }
+  assert.match(composeService(compose, "blogger", "proxy"), /BLOGGER_TRUST_PROXY: "true"/);
+});
+
+test("Compose grants both services enough time for graceful shutdown", () => {
+  const compose = read("compose.yaml");
+  const blogger = composeService(compose, "blogger", "proxy");
+  const proxy = composeService(compose, "proxy", "unused");
+  assert.match(blogger, /stop_grace_period: (?:3[5-9]|[4-9]\d|\d{3,})s/);
+  assert.match(proxy, /stop_signal: SIGQUIT/);
+  assert.match(proxy, /stop_grace_period: (?:3[5-9]|[4-9]\d|\d{3,})s/);
 });
 
 test("unprivileged proxy uses writable temp paths and waits through the maximum build", () => {
@@ -60,6 +73,10 @@ test("unprivileged proxy uses writable temp paths and waits through the maximum 
   assert.match(nginx, /root \/usr\/share\/nginx\/html\/current;/);
   assert.match(nginx, /proxy_pass http:\/\/blogger:8787;/);
   assert.match(nginx, /proxy_read_timeout 910s;/);
+  assert.match(nginx, /map \$http_x_real_ip \$blogger_client_ip/);
+  assert.match(nginx, /default \$remote_addr;/);
+  assert.match(nginx, /proxy_set_header X-Real-IP \$blogger_client_ip;/);
+  assert.doesNotMatch(nginx, /proxy_set_header X-Real-IP \$remote_addr;/);
   assert.match(nginx, /location = \/admin\/blogger\/login/);
   assert.match(nginx, /location ~ \^\/\(api\/admin\|api\/blogger\|api\/posts\|api\/build\|\\\.well-known\/wf-blogger\\\.json\)/);
 });

@@ -5,7 +5,9 @@ The deployment has two containers on one Compose resource:
 - `blogger` runs Node, builds releases, and is the only service allowed to write content or state.
 - `proxy` runs unprivileged Nginx, serves the active public release, and forwards dynamic routes to `blogger:8787`.
 
-Neither service publishes a host port and no ingress labels target Blogger. Attach `https://sportmassagefuengirola.com` only to the `proxy` service on container port `8080`. Both services keep the internal `blogger_internal` network for proxy-to-Node traffic. Blogger also joins the non-internal `web` network so it can exchange one-time codes with the HTTPS Studio endpoint; this network provides egress but does not publish port `8787` on the host. On a VPS without Coolify, connect the existing TLS reverse proxy to `web` and route it only to `proxy:8080`.
+Neither service publishes a host port and no ingress labels target Blogger. Attach `https://sportmassagefuengirola.com` only to the `proxy` service on container port `8080`. Both services keep the internal `blogger_internal` network for proxy-to-Node traffic. Blogger also joins the dedicated, non-internal `blogger_egress` network so it can exchange one-time codes with the HTTPS Studio endpoint. Only Blogger joins that network; it provides outbound connectivity but no direct ingress to Node. The proxy alone joins `web` for ingress. On a VPS without Coolify, connect the existing TLS reverse proxy to `web` and route it only to `proxy:8080`.
+
+The outer TLS proxy must overwrite, rather than append or preserve, the request's `X-Real-IP` header with the verified client address. Nginx validates that it received one IP-shaped value and falls back to its direct peer; Node then validates the value as an IP. Compose explicitly enables `BLOGGER_TRUST_PROXY=true` because Node has no ingress, published port, or routing label and receives application requests only from this Nginx proxy over `blogger_internal`.
 
 ## Persistent volumes and ownership
 
@@ -31,13 +33,13 @@ Configure these values as protected runtime variables on the `blogger` service:
 
 Set the password hash and every value containing `$` as **Literal** in Coolify. Otherwise Coolify may interpret part of a scrypt hash as variable interpolation. Store only the generated hash; never store the direct plaintext password in Coolify, Git, Compose, build arguments, labels, or logs.
 
-The Compose file fixes `HOST=0.0.0.0` only inside the isolated Blogger container. Running Node outside Compose keeps the secure default `127.0.0.1`. Umami remains disabled unless its UUID and collector URL are verified and `UMAMI_PRODUCTION_VERIFIED=true` is set explicitly.
+The Compose file fixes `HOST=0.0.0.0` and `BLOGGER_TRUST_PROXY=true` only inside the isolated Blogger container. Running Node outside Compose keeps the secure defaults `127.0.0.1` and disabled proxy trust. Umami remains disabled unless its UUID and collector URL are verified and `UMAMI_PRODUCTION_VERIFIED=true` is set explicitly.
 
 ## Startup, health, and timeouts
 
-The Blogger entrypoint creates the persistent directories, builds a complete release, and then replaces itself with Node. Node handles `SIGTERM` and `SIGINT`, stops accepting requests with `server.close()`, and forces shutdown after 30 seconds if connections do not drain.
+The Blogger entrypoint creates the persistent directories, builds a complete release, and then replaces itself with Node. Node handles `SIGTERM` and `SIGINT`, stops accepting requests with `server.close()`, and forces shutdown after 30 seconds if connections do not drain. Compose allows 40 seconds before forcing the Blogger container to stop.
 
-The proxy uses writable PID, client-body, proxy, FastCGI, uWSGI, and SCGI temporary paths under `/tmp/nginx`; its public volume remains read-only. `proxy_read_timeout 910s` is longer than the server's maximum accepted build timeout of 900 seconds.
+The proxy uses writable PID, client-body, proxy, FastCGI, uWSGI, and SCGI temporary paths under `/tmp/nginx`; its public volume remains read-only. Compose sends Nginx `SIGQUIT` and allows 40 seconds for graceful connection draining. `proxy_read_timeout 910s` is longer than the server's maximum accepted build timeout of 900 seconds.
 
 Both health checks call `/api/blogger/health`. Keep the Studio tool disabled until the Blogger and proxy containers are healthy over HTTPS.
 
