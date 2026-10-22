@@ -30,6 +30,7 @@ services:
       - sportmassage_blogger_public:/app/.blogger-state/public
     networks:
       - blogger_internal
+      - web
 
   proxy:
     build:

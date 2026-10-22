@@ -5,7 +5,7 @@ The deployment has two containers on one Compose resource:
 - `blogger` runs Node, builds releases, and is the only service allowed to write content or state.
 - `proxy` runs unprivileged Nginx, serves the active public release, and forwards dynamic routes to `blogger:8787`.
 
-Neither service publishes a host port. Attach `https://sportmassagefuengirola.com` to the `proxy` service on container port `8080`. Node is reachable only from the internal `blogger_internal` network. On a VPS without Coolify, connect the existing TLS reverse proxy to the non-internal `web` network and route it to `proxy:8080`.
+Neither service publishes a host port and no ingress labels target Blogger. Attach `https://sportmassagefuengirola.com` only to the `proxy` service on container port `8080`. Both services keep the internal `blogger_internal` network for proxy-to-Node traffic. Blogger also joins the non-internal `web` network so it can exchange one-time codes with the HTTPS Studio endpoint; this network provides egress but does not publish port `8787` on the host. On a VPS without Coolify, connect the existing TLS reverse proxy to `web` and route it only to `proxy:8080`.
 
 ## Persistent volumes and ownership
 
@@ -37,7 +37,7 @@ The Compose file fixes `HOST=0.0.0.0` only inside the isolated Blogger container
 
 The Blogger entrypoint creates the persistent directories, builds a complete release, and then replaces itself with Node. Node handles `SIGTERM` and `SIGINT`, stops accepting requests with `server.close()`, and forces shutdown after 30 seconds if connections do not drain.
 
-The proxy uses writable PID and temporary paths under `/tmp/nginx`; its public volume remains read-only. `proxy_read_timeout 910s` is longer than the server's maximum accepted build timeout of 900 seconds.
+The proxy uses writable PID, client-body, proxy, FastCGI, uWSGI, and SCGI temporary paths under `/tmp/nginx`; its public volume remains read-only. `proxy_read_timeout 910s` is longer than the server's maximum accepted build timeout of 900 seconds.
 
 Both health checks call `/api/blogger/health`. Keep the Studio tool disabled until the Blogger and proxy containers are healthy over HTTPS.
 

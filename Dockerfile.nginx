@@ -1,7 +1,8 @@
 FROM nginxinc/nginx-unprivileged:1.27-alpine
 
 USER root
-RUN mkdir -p /tmp/nginx/client_temp /tmp/nginx/proxy_temp \
+RUN mkdir -p /tmp/nginx/client_temp /tmp/nginx/proxy_temp /tmp/nginx/fastcgi_temp \
+    /tmp/nginx/uwsgi_temp /tmp/nginx/scgi_temp \
   && chown -R 10001:10001 /tmp/nginx
 COPY --chown=10001:10001 deploy/nginx-coolify.conf /etc/nginx/nginx.conf
 

@@ -32,11 +32,18 @@ test("Compose isolates Blogger writes from the read-only public proxy", () => {
   assert.doesNotMatch(compose, /^\s*ports:/m);
 });
 
-test("Compose keeps Blogger on an internal network and requires runtime secrets", () => {
+test("Compose gives Blogger an internal service network and a separate egress network", () => {
   const compose = read("compose.yaml");
   assert.match(compose, /blogger_internal:\s*\n\s*internal: true/);
-  assert.match(composeService(compose, "blogger", "proxy"), /networks:\s*\n\s*- blogger_internal/);
+  assert.doesNotMatch(compose, /web:\s*\n\s*internal: true/);
+  assert.match(composeService(compose, "blogger", "proxy"), /networks:\s*\n\s*- blogger_internal\s*\n\s*- web/);
   assert.match(composeService(compose, "proxy", "unused"), /networks:\s*\n\s*- blogger_internal\s*\n\s*- web/);
+  assert.doesNotMatch(compose, /^\s*ports:/m);
+  assert.doesNotMatch(compose, /^\s*labels:/m);
+});
+
+test("Compose requires runtime secrets without embedding their values", () => {
+  const compose = read("compose.yaml");
   for (const name of ["BLOGGER_DIRECT_PASSWORD_HASH", "BLOGGER_SESSION_SECRET", "BLOGGER_HANDOFF_SECRET"]) {
     assert.match(compose, new RegExp(`${name}: ["']?\\x24\\{${name}:\\?`));
   }
@@ -47,6 +54,9 @@ test("unprivileged proxy uses writable temp paths and waits through the maximum 
   assert.match(nginx, /pid \/tmp\/nginx\/nginx\.pid;/);
   assert.match(nginx, /client_body_temp_path \/tmp\/nginx\/client_temp;/);
   assert.match(nginx, /proxy_temp_path \/tmp\/nginx\/proxy_temp;/);
+  assert.match(nginx, /fastcgi_temp_path \/tmp\/nginx\/fastcgi_temp;/);
+  assert.match(nginx, /uwsgi_temp_path \/tmp\/nginx\/uwsgi_temp;/);
+  assert.match(nginx, /scgi_temp_path \/tmp\/nginx\/scgi_temp;/);
   assert.match(nginx, /root \/usr\/share\/nginx\/html\/current;/);
   assert.match(nginx, /proxy_pass http:\/\/blogger:8787;/);
   assert.match(nginx, /proxy_read_timeout 910s;/);
@@ -63,6 +73,9 @@ test("separate images run Blogger and Nginx as the documented numeric identity",
   assert.match(proxyImage, /USER 10001:10001/);
   assert.match(proxyImage, /deploy\/nginx-coolify\.conf/);
   assert.match(proxyImage, /ENTRYPOINT \["nginx"\]/);
+  for (const directory of ["client_temp", "proxy_temp", "fastcgi_temp", "uwsgi_temp", "scgi_temp"]) {
+    assert.match(proxyImage, new RegExp(`/tmp/nginx/${directory}`));
+  }
 });
 
 test("Blogger entrypoint builds the persistent release before execing Node", () => {
