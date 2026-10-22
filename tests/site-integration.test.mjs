@@ -18,6 +18,10 @@ test("the public release manifest follows the current origin/main design assets"
   for (const relative of manifest.files) {
     assert.equal(fs.existsSync(path.join(root, relative)), true, relative);
   }
+  assert.deepEqual(
+    manifest.files.filter((relative) => relative.startsWith("admin/blogger/")).sort(),
+    ["app.js", "blogger-auth-core.js", "blogger-auth.js", "editor-schema.js", "index.html", "styles.css"].map((name) => `admin/blogger/${name}`).sort(),
+  );
 });
 
 test("CI verifies tests, source policy and the complete static release build", () => {

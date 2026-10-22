@@ -24,6 +24,7 @@ const MAX_HANDOFF_BODY = 4 * 1024;
 const MAX_POST_BODY = 512 * 1024;
 const MAX_MEDIA_BYTES = 10 * 1024 * 1024;
 const MAX_MEDIA_BODY = Math.ceil((MAX_MEDIA_BYTES * 4) / 3) + 8 * 1024;
+const REMEMBERED_SESSION_TTL_MS = 30 * 24 * 60 * 60 * 1_000;
 
 class RequestError extends Error {
   constructor(status, code) {
@@ -252,6 +253,8 @@ export function createPostManagerServer({
   const sessions = createSessionStore({
     maxEntries: maxSessions,
     ttlMs: config.sessionTtlMs,
+    rememberedTtlMs: REMEMBERED_SESSION_TTL_MS,
+    persistentFile: path.join(config.stateDirectory, "sessions.json"),
     secret: config.sessionSecret,
   });
   const limiter = createRateLimiter({
@@ -290,11 +293,12 @@ export function createPostManagerServer({
     return session;
   }
 
-  function establish(request, response, data) {
+  function establish(request, response, data, { remembered = false } = {}) {
     const prior = parseCookies(request)[COOKIE_NAME];
     if (prior) sessions.destroy(prior);
-    const token = sessions.create(data);
-    json(response, 200, { authenticated: true }, { "Set-Cookie": sessionCookie(token, Math.floor(config.sessionTtlMs / 1_000)) });
+    const token = sessions.create(data, { remembered });
+    const ttlMs = remembered ? REMEMBERED_SESSION_TTL_MS : config.sessionTtlMs;
+    json(response, 200, { authenticated: true }, { "Set-Cookie": sessionCookie(token, Math.floor(ttlMs / 1_000)) });
   }
 
   function readiness() {
@@ -359,6 +363,7 @@ export function createPostManagerServer({
           return;
         }
         const body = await readJson(request, MAX_LOGIN_BODY);
+        if (body.remember !== undefined && typeof body.remember !== "boolean") throw new RequestError(400, "invalid_request");
         const valid = await verifyDirectCredentials({
           suppliedUsername: body.username,
           suppliedPassword: body.password,
@@ -374,7 +379,7 @@ export function createPostManagerServer({
           source: "direct",
           scope: ["blogger"],
           subject: { role: "blogger_editor", username: config.username },
-        });
+        }, { remembered: body.remember === true });
         return;
       }
 

@@ -138,8 +138,12 @@ test("deployment declares shared read access and hardened admin response headers
   for (const expected of ["Content-Security-Policy", "frame-ancestors 'none'", "X-Frame-Options \"DENY\"", "X-Content-Type-Options \"nosniff\"", "Referrer-Policy \"no-referrer\"", "Cache-Control \"no-store\""]) assert.match(nginx, new RegExp(expected));
   assert.match(nginx, /location \/admin\/blogger\/ \{[^}]*root \/srv\/sportmassage\/current\/\.blogger-state\/public\/current;/);
   assert.match(deploymentGuide, /serve .*`\/admin\/blogger\/` from the generated `.blogger-state\/public\/current` release/i);
-  assert.match(deploymentGuide, /redirects to the canonical Studio Blogger/);
-  assert.doesNotMatch(deploymentGuide, /serve `\/admin\/blogger\/` from the checkout|one-time code in the fragment/);
+  assert.match(nginx, /script-src 'self'/);
+  assert.match(nginx, /connect-src 'self'/);
+  assert.match(deploymentGuide, /independent Sport Massage editor/i);
+  assert.match(deploymentGuide, /BLOGGER_DIRECT_USERNAME=sportsmassage/);
+  assert.match(deploymentGuide, /BLOGGER_DIRECT_PASSWORD_HASH/);
+  assert.doesNotMatch(deploymentGuide, /redirects to the canonical Studio Blogger|serve `\/admin\/blogger\/` from the checkout/);
   const binary = ["/opt/homebrew/bin/nginx", "/usr/sbin/nginx", "/usr/local/sbin/nginx"].find(fs.existsSync);
   if (binary) {
     const prefix = temp("sportmassage-nginx-"); const configuration = path.join(prefix, "nginx.conf");

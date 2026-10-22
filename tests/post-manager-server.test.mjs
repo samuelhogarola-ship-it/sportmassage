@@ -38,7 +38,7 @@ async function listen(overrides = {}) {
     BLOGGER_PUBLIC_ORIGIN: "https://sportmassagefuengirola.com",
     BLOGGER_STUDIO_ORIGIN: "https://studio.example.com",
     BLOGGER_STUDIO_EXCHANGE_URL: "https://studio.example.com/api/tool-launch/exchange",
-    BLOGGER_DIRECT_USERNAME: "sofia-blogger",
+    BLOGGER_DIRECT_USERNAME: "sportsmassage",
     BLOGGER_DIRECT_PASSWORD_HASH: passwordHash,
     BLOGGER_SESSION_SECRET: "session_4Yz!Q9mP2vK7xN5cR8tL3wD6hF1sJ0aB",
     BLOGGER_HANDOFF_SECRET: "handoff_7Nv!P3qR9mC2xW8kT5dL1yF6jH4sA0e",
@@ -85,8 +85,9 @@ async function login(app, body = {}) {
       ...(body.headers ?? {}),
     },
     body: JSON.stringify({
-      username: body.username ?? "sofia-blogger",
+      username: body.username ?? "sportsmassage",
       password: body.password ?? password,
+      remember: body.remember ?? false,
     }),
   });
 }
@@ -97,7 +98,7 @@ test("wrong usernames still execute one password derivation", async () => {
   const valid = await serverModule.verifyDirectCredentials({
     suppliedUsername: "unknown-user",
     suppliedPassword: "Wrong-Password-2026!",
-    expectedUsername: "sofia-blogger",
+    expectedUsername: "sportsmassage",
     passwordHash: "encoded-password-hash",
     passwordVerifier: async (password, encoded) => {
       derivations += 1;
@@ -116,6 +117,7 @@ test("direct credentials grant Blogger scope only and audit direct origin", asyn
   const response = await login(app);
   assert.equal(response.status, 200, await response.clone().text());
   assert.match(response.headers.get("set-cookie") ?? "", /^__Host-sportmassage_blogger_session=.*HttpOnly; Secure; SameSite=Strict/);
+  const signedToken = cookie(response).split("=", 2)[1];
   const session = await fetch(`${app.url}/api/admin/session`, {
     headers: { cookie: cookie(response) },
   });
@@ -123,11 +125,17 @@ test("direct credentials grant Blogger scope only and audit direct origin", asyn
     authenticated: true,
     source: "direct",
     scope: ["blogger"],
-    subject: { role: "blogger_editor", username: "sofia-blogger" },
+    subject: { role: "blogger_editor", username: "sportsmassage" },
   });
   const audit = fs.readFileSync(path.join(app.root, ".blogger-state/audit.ndjson"), "utf8");
   assert.match(audit, /"origin":"direct"/);
   assert.doesNotMatch(audit, new RegExp(password));
+  assert.equal(audit.includes(signedToken), false);
+  const rejected = await login(app, { password: "Synthetic-Wrong-Password-2026!" });
+  const errorBody = await rejected.text();
+  assert.equal(errorBody, '{"error":"authentication_failed"}');
+  assert.equal(errorBody.includes("Synthetic-Wrong-Password-2026!"), false);
+  assert.equal(errorBody.includes(signedToken), false);
 });
 
 test("a new direct login rotates the browser's prior session", async (t) => {
@@ -142,6 +150,90 @@ test("a new direct login rotates the browser's prior session", async (t) => {
     headers: { cookie: firstCookie },
   });
   assert.equal(retired.status, 401);
+});
+
+test("short direct sessions keep the configured lifetime and do not survive restart", async (t) => {
+  const root = fixture();
+  const firstApp = await listen({ root });
+  t.after(async () => { if (firstApp.server.listening) await firstApp.close(); });
+  const loggedIn = await login(firstApp, { remember: false });
+  const sessionCookie = cookie(loggedIn);
+  assert.match(loggedIn.headers.get("set-cookie") ?? "", /Max-Age=28800/);
+  assert.equal(fs.existsSync(path.join(root, ".blogger-state/sessions.json")), false);
+  await firstApp.close();
+
+  const restarted = await listen({ root });
+  t.after(restarted.close);
+  const session = await fetch(`${restarted.url}/api/admin/session`, {
+    headers: { cookie: sessionCookie },
+  });
+  assert.equal(session.status, 401);
+});
+
+test("remembered direct sessions use a 30-day cookie and survive restart without persisting credentials", async (t) => {
+  const root = fixture();
+  const firstApp = await listen({ root });
+  t.after(async () => { if (firstApp.server.listening) await firstApp.close(); });
+  const loggedIn = await login(firstApp, { remember: true });
+  const sessionCookie = cookie(loggedIn);
+  assert.match(loggedIn.headers.get("set-cookie") ?? "", /Max-Age=2592000/);
+  const sessionFile = path.join(root, ".blogger-state/sessions.json");
+  assert.equal(fs.statSync(sessionFile).mode & 0o777, 0o600);
+  const state = fs.readFileSync(sessionFile, "utf8");
+  assert.doesNotMatch(state, new RegExp(password));
+  assert.doesNotMatch(state, /Massage-Blogger|__Host-|scrypt\$|\.[A-Za-z0-9_-]{43}/);
+  await firstApp.close();
+
+  const restarted = await listen({ root });
+  t.after(restarted.close);
+  const session = await fetch(`${restarted.url}/api/admin/session`, {
+    headers: { cookie: sessionCookie },
+  });
+  assert.equal(session.status, 200);
+  assert.equal((await session.json()).source, "direct");
+});
+
+test("remembered session rotation and logout delete the prior persistent record", async (t) => {
+  const app = await listen();
+  t.after(app.close);
+  const first = await login(app, { remember: true });
+  const firstCookie = cookie(first);
+  const second = await login(app, { remember: true, headers: { cookie: firstCookie } });
+  const secondCookie = cookie(second);
+  assert.notEqual(secondCookie, firstCookie);
+  assert.equal((await fetch(`${app.url}/api/admin/session`, { headers: { cookie: firstCookie } })).status, 401);
+  const logout = await fetch(`${app.url}/api/admin/logout`, {
+    method: "POST",
+    headers: { cookie: secondCookie, origin: "http://127.0.0.1" },
+  });
+  assert.equal(logout.status, 204);
+  const persisted = JSON.parse(fs.readFileSync(path.join(app.root, ".blogger-state/sessions.json"), "utf8"));
+  assert.deepEqual(persisted.records, []);
+});
+
+test("persistent session stores prune expired records and remain bounded", () => {
+  assert.equal(typeof auth.createSessionStore, "function");
+  const root = fixture();
+  const sessionFile = path.join(root, ".blogger-state/sessions.json");
+  let clock = 1_700_000_000_000;
+  const options = {
+    maxEntries: 2,
+    ttlMs: 1_000,
+    rememberedTtlMs: 30 * 24 * 60 * 60 * 1_000,
+    persistentFile: sessionFile,
+    now: () => clock,
+    secret: "session_4Yz!Q9mP2vK7xN5cR8tL3wD6hF1sJ0aB",
+  };
+  const store = auth.createSessionStore(options);
+  store.create({ source: "direct", scope: ["blogger"], marker: "first" }, { remembered: true });
+  const retained = store.create({ source: "direct", scope: ["blogger"], marker: "second" }, { remembered: true });
+  store.create({ source: "direct", scope: ["blogger"], marker: "third" }, { remembered: true });
+  assert.equal(store.size, 2);
+  assert.equal(store.get(retained).marker, "second");
+  clock += 30 * 24 * 60 * 60 * 1_000 + 1;
+  const restarted = auth.createSessionStore(options);
+  assert.equal(restarted.size, 0);
+  assert.deepEqual(JSON.parse(fs.readFileSync(sessionFile, "utf8")).records, []);
 });
 
 test("Studio handoff exchanges the exact site audience and records studio origin", async (t) => {
