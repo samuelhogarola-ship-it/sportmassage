@@ -388,7 +388,7 @@ export function createPostManagerServer({
         activeHandoffs += 1;
         try {
           const body = await readJson(request, MAX_HANDOFF_BODY);
-          if (!CODE_PATTERN.test(body.code ?? "")) throw new RequestError(400, "invalid_launch_code");
+          if (typeof body?.code !== "string" || !CODE_PATTERN.test(body.code)) throw new RequestError(400, "invalid_launch_code");
           let ticket;
           try {
             const exchange = await fetchImpl(config.exchangeUrl, {
@@ -399,6 +399,9 @@ export function createPostManagerServer({
             ticket = await boundedResponseJson(exchange);
           } catch { throw new RequestError(401, "invalid_or_expired_ticket"); }
           if (
+            !ticket ||
+            typeof ticket !== "object" ||
+            Array.isArray(ticket) ||
             ticket.protocol !== HANDOFF_PROTOCOL ||
             ticket.audience !== BLOGGER_AUDIENCE ||
             !ticket.subject ||

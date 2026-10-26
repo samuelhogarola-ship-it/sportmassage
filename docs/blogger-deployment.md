@@ -7,7 +7,16 @@ The public blog is generated HTML. The editor service only writes source content
 Keep Blogger disabled in Studio until all of these checks pass over HTTPS:
 
 1. Mount `content/blog`, `content/blog/media`, and `.blogger-state` on persistent storage owned by the service account with shared group `www-data`. Directories are `0750`, generated files are `0640`, and the service runs with `UMask=0027`, so Nginx can traverse/read releases without write access.
-2. Fill every required `BLOGGER_*` value in a protected environment file. Use independent strong session and handoff secrets.
+2. Fill every required `BLOGGER_*` value in a protected environment file. Use independent strong session and handoff secrets. Direct login also requires `BLOGGER_DIRECT_USERNAME` and a scrypt hash in `BLOGGER_DIRECT_PASSWORD_HASH`; never store the plain password. Generate the hash through standard input so the password does not appear in the process arguments:
+
+   ```sh
+   read -s BLOGGER_PASSWORD
+   export BLOGGER_PASSWORD
+   printf '%s' "$BLOGGER_PASSWORD" | node scripts/generate-blogger-password-hash.mjs
+   unset BLOGGER_PASSWORD
+   ```
+
+   Store the printed hash as `BLOGGER_DIRECT_PASSWORD_HASH` in the protected environment file.
 3. Configure Studio to exchange one-time codes for the exact audience `sportmassagefuengirola`.
 4. Serve the public site and `/admin/blogger/` from the generated `.blogger-state/public/current` release, and route `/api/` to the service without exposing its loopback port directly. The generated admin entry redirects to the canonical Studio Blogger; never serve the retired checkout editor assets.
 5. Confirm `GET /.well-known/wf-blogger.json` returns discovery capabilities and `GET /api/blogger/health` returns `200` with redacted boolean checks. Health intentionally returns `503` when there is no active release, content/state permissions are unusable, or transaction recovery remains unresolved. Neither response contains credentials, paths, launch codes, or analytics identifiers.

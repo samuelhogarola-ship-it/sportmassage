@@ -172,8 +172,44 @@ test("Studio handoff exchanges the exact site audience and records studio origin
   const body = await session.json();
   assert.equal(body.source, "studio");
   assert.deepEqual(body.scope, ["blogger"]);
+  assert.deepEqual(body.subject, { role: "client", userId: "user-1", projectId: "project-1" });
   const audit = fs.readFileSync(path.join(app.root, ".blogger-state/audit.ndjson"), "utf8");
   assert.match(audit, /"origin":"studio"/);
+});
+
+test("Studio handoff rejects null and non-string launch codes before exchange", async (t) => {
+  let exchanges = 0;
+  const app = await listen({
+    fetchImpl: async () => {
+      exchanges += 1;
+      return Response.json({});
+    },
+  });
+  t.after(app.close);
+  for (const payload of [null, { code: ["A".repeat(43)] }]) {
+    const response = await fetch(`${app.url}/admin/blogger/launch`, {
+      method: "POST",
+      headers: { "content-type": "application/json", origin: "http://127.0.0.1" },
+      body: JSON.stringify(payload),
+    });
+    assert.equal(response.status, 400);
+    assert.deepEqual(await response.json(), { error: "invalid_launch_code" });
+  }
+  assert.equal(exchanges, 0);
+});
+
+test("Studio handoff rejects non-object exchange responses as expired tickets", async (t) => {
+  for (const payload of [null, []]) {
+    const app = await listen({ fetchImpl: async () => Response.json(payload) });
+    t.after(app.close);
+    const response = await fetch(`${app.url}/admin/blogger/launch`, {
+      method: "POST",
+      headers: { "content-type": "application/json", origin: "http://127.0.0.1" },
+      body: JSON.stringify({ code: "A".repeat(43) }),
+    });
+    assert.equal(response.status, 401);
+    assert.deepEqual(await response.json(), { error: "invalid_or_expired_ticket" });
+  }
 });
 
 test("Studio handoff rejects a response with the wrong protocol", async (t) => {
