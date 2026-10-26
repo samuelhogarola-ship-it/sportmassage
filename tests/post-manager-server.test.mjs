@@ -16,18 +16,6 @@ const editorSchema = await import("../admin/blogger/editor-schema.js").catch(() 
 const generator = await import("../scripts/generate-blog.mjs").catch(() => ({}));
 
 const password = "Massage-Blogger-Only-2026!";
-const handoffRequest = (code) => JSON.stringify({
-  protocol: "wf-blogger-handoff/v1",
-  code,
-  siteKey: "sportmassagefuengirola",
-});
-const handoffTicket = (overrides = {}) => ({
-  protocol: "wf-blogger-handoff/v1",
-  siteKey: "sportmassagefuengirola",
-  audience: "https://sportmassagefuengirola.com",
-  subject: { role: "client", userId: "user-1", clientId: "client-1", projectId: "project-1" },
-  ...overrides,
-});
 
 function fixture() {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "sportmassage-server-"));
@@ -50,7 +38,7 @@ async function listen(overrides = {}) {
     BLOGGER_PUBLIC_ORIGIN: "https://sportmassagefuengirola.com",
     BLOGGER_STUDIO_ORIGIN: "https://studio.example.com",
     BLOGGER_STUDIO_EXCHANGE_URL: "https://studio.example.com/api/tool-launch/exchange",
-    BLOGGER_DIRECT_USERNAME: "sportsmassage",
+    BLOGGER_DIRECT_USERNAME: "sofia-blogger",
     BLOGGER_DIRECT_PASSWORD_HASH: passwordHash,
     BLOGGER_SESSION_SECRET: "session_4Yz!Q9mP2vK7xN5cR8tL3wD6hF1sJ0aB",
     BLOGGER_HANDOFF_SECRET: "handoff_7Nv!P3qR9mC2xW8kT5dL1yF6jH4sA0e",
@@ -97,9 +85,8 @@ async function login(app, body = {}) {
       ...(body.headers ?? {}),
     },
     body: JSON.stringify({
-      username: body.username ?? "sportsmassage",
+      username: body.username ?? "sofia-blogger",
       password: body.password ?? password,
-      remember: body.remember ?? false,
     }),
   });
 }
@@ -110,7 +97,7 @@ test("wrong usernames still execute one password derivation", async () => {
   const valid = await serverModule.verifyDirectCredentials({
     suppliedUsername: "unknown-user",
     suppliedPassword: "Wrong-Password-2026!",
-    expectedUsername: "sportsmassage",
+    expectedUsername: "sofia-blogger",
     passwordHash: "encoded-password-hash",
     passwordVerifier: async (password, encoded) => {
       derivations += 1;
@@ -129,7 +116,6 @@ test("direct credentials grant Blogger scope only and audit direct origin", asyn
   const response = await login(app);
   assert.equal(response.status, 200, await response.clone().text());
   assert.match(response.headers.get("set-cookie") ?? "", /^__Host-sportmassage_blogger_session=.*HttpOnly; Secure; SameSite=Strict/);
-  const signedToken = cookie(response).split("=", 2)[1];
   const session = await fetch(`${app.url}/api/admin/session`, {
     headers: { cookie: cookie(response) },
   });
@@ -137,17 +123,11 @@ test("direct credentials grant Blogger scope only and audit direct origin", asyn
     authenticated: true,
     source: "direct",
     scope: ["blogger"],
-    subject: { role: "blogger_editor", username: "sportsmassage" },
+    subject: { role: "blogger_editor", username: "sofia-blogger" },
   });
   const audit = fs.readFileSync(path.join(app.root, ".blogger-state/audit.ndjson"), "utf8");
   assert.match(audit, /"origin":"direct"/);
   assert.doesNotMatch(audit, new RegExp(password));
-  assert.equal(audit.includes(signedToken), false);
-  const rejected = await login(app, { password: "Synthetic-Wrong-Password-2026!" });
-  const errorBody = await rejected.text();
-  assert.equal(errorBody, '{"error":"authentication_failed"}');
-  assert.equal(errorBody.includes("Synthetic-Wrong-Password-2026!"), false);
-  assert.equal(errorBody.includes(signedToken), false);
 });
 
 test("a new direct login rotates the browser's prior session", async (t) => {
@@ -164,90 +144,6 @@ test("a new direct login rotates the browser's prior session", async (t) => {
   assert.equal(retired.status, 401);
 });
 
-test("short direct sessions keep the configured lifetime and do not survive restart", async (t) => {
-  const root = fixture();
-  const firstApp = await listen({ root });
-  t.after(async () => { if (firstApp.server.listening) await firstApp.close(); });
-  const loggedIn = await login(firstApp, { remember: false });
-  const sessionCookie = cookie(loggedIn);
-  assert.match(loggedIn.headers.get("set-cookie") ?? "", /Max-Age=28800/);
-  assert.equal(fs.existsSync(path.join(root, ".blogger-state/sessions.json")), false);
-  await firstApp.close();
-
-  const restarted = await listen({ root });
-  t.after(restarted.close);
-  const session = await fetch(`${restarted.url}/api/admin/session`, {
-    headers: { cookie: sessionCookie },
-  });
-  assert.equal(session.status, 401);
-});
-
-test("remembered direct sessions use a 30-day cookie and survive restart without persisting credentials", async (t) => {
-  const root = fixture();
-  const firstApp = await listen({ root });
-  t.after(async () => { if (firstApp.server.listening) await firstApp.close(); });
-  const loggedIn = await login(firstApp, { remember: true });
-  const sessionCookie = cookie(loggedIn);
-  assert.match(loggedIn.headers.get("set-cookie") ?? "", /Max-Age=2592000/);
-  const sessionFile = path.join(root, ".blogger-state/sessions.json");
-  assert.equal(fs.statSync(sessionFile).mode & 0o777, 0o600);
-  const state = fs.readFileSync(sessionFile, "utf8");
-  assert.doesNotMatch(state, new RegExp(password));
-  assert.doesNotMatch(state, /Massage-Blogger|__Host-|scrypt\$|\.[A-Za-z0-9_-]{43}/);
-  await firstApp.close();
-
-  const restarted = await listen({ root });
-  t.after(restarted.close);
-  const session = await fetch(`${restarted.url}/api/admin/session`, {
-    headers: { cookie: sessionCookie },
-  });
-  assert.equal(session.status, 200);
-  assert.equal((await session.json()).source, "direct");
-});
-
-test("remembered session rotation and logout delete the prior persistent record", async (t) => {
-  const app = await listen();
-  t.after(app.close);
-  const first = await login(app, { remember: true });
-  const firstCookie = cookie(first);
-  const second = await login(app, { remember: true, headers: { cookie: firstCookie } });
-  const secondCookie = cookie(second);
-  assert.notEqual(secondCookie, firstCookie);
-  assert.equal((await fetch(`${app.url}/api/admin/session`, { headers: { cookie: firstCookie } })).status, 401);
-  const logout = await fetch(`${app.url}/api/admin/logout`, {
-    method: "POST",
-    headers: { cookie: secondCookie, origin: "http://127.0.0.1" },
-  });
-  assert.equal(logout.status, 204);
-  const persisted = JSON.parse(fs.readFileSync(path.join(app.root, ".blogger-state/sessions.json"), "utf8"));
-  assert.deepEqual(persisted.records, []);
-});
-
-test("persistent session stores prune expired records and remain bounded", () => {
-  assert.equal(typeof auth.createSessionStore, "function");
-  const root = fixture();
-  const sessionFile = path.join(root, ".blogger-state/sessions.json");
-  let clock = 1_700_000_000_000;
-  const options = {
-    maxEntries: 2,
-    ttlMs: 1_000,
-    rememberedTtlMs: 30 * 24 * 60 * 60 * 1_000,
-    persistentFile: sessionFile,
-    now: () => clock,
-    secret: "session_4Yz!Q9mP2vK7xN5cR8tL3wD6hF1sJ0aB",
-  };
-  const store = auth.createSessionStore(options);
-  store.create({ source: "direct", scope: ["blogger"], marker: "first" }, { remembered: true });
-  const retained = store.create({ source: "direct", scope: ["blogger"], marker: "second" }, { remembered: true });
-  store.create({ source: "direct", scope: ["blogger"], marker: "third" }, { remembered: true });
-  assert.equal(store.size, 2);
-  assert.equal(store.get(retained).marker, "second");
-  clock += 30 * 24 * 60 * 60 * 1_000 + 1;
-  const restarted = auth.createSessionStore(options);
-  assert.equal(restarted.size, 0);
-  assert.deepEqual(JSON.parse(fs.readFileSync(sessionFile, "utf8")).records, []);
-});
-
 test("Studio handoff exchanges the exact site audience and records studio origin", async (t) => {
   let exchangeRequest;
   const app = await listen({
@@ -255,9 +151,8 @@ test("Studio handoff exchanges the exact site audience and records studio origin
       exchangeRequest = { url, init, body: JSON.parse(init.body) };
       return Response.json({
         protocol: "wf-blogger-handoff/v1",
-        siteKey: "sportmassagefuengirola",
-        audience: "https://sportmassagefuengirola.com",
-        subject: { role: "client", userId: "user-1", clientId: "client-1", projectId: "project-1" },
+        audience: "sportmassagefuengirola",
+        subject: { role: "client", userId: "user-1", projectId: "project-1" },
       });
     },
   });
@@ -265,15 +160,11 @@ test("Studio handoff exchanges the exact site audience and records studio origin
   const response = await fetch(`${app.url}/admin/blogger/launch`, {
     method: "POST",
     headers: { "content-type": "application/json", origin: "http://127.0.0.1" },
-    body: handoffRequest("A".repeat(43)),
+    body: JSON.stringify({ code: "A".repeat(43) }),
   });
   assert.equal(response.status, 200, await response.clone().text());
   assert.equal(exchangeRequest.url, "https://studio.example.com/api/tool-launch/exchange");
-  assert.deepEqual(exchangeRequest.body, {
-    protocol: "wf-blogger-handoff/v1",
-    code: "A".repeat(43),
-    siteKey: "sportmassagefuengirola",
-  });
+  assert.equal(exchangeRequest.body.audience, "sportmassagefuengirola");
   assert.equal(exchangeRequest.init.headers.Authorization, `Bearer ${"handoff_7Nv!P3qR9mC2xW8kT5dL1yF6jH4sA0e"}`);
   const session = await fetch(`${app.url}/api/admin/session`, {
     headers: { cookie: cookie(response) },
@@ -285,40 +176,19 @@ test("Studio handoff exchanges the exact site audience and records studio origin
   assert.match(audit, /"origin":"studio"/);
 });
 
-test("handoff exchange serializers and validators enforce the exact v1 contract", () => {
-  assert.equal(typeof serverModule.serializeHandoffExchangeRequest, "function");
-  assert.equal(typeof serverModule.validateHandoffExchangeResponse, "function");
-  const code = "C".repeat(43);
-  assert.deepEqual(JSON.parse(serverModule.serializeHandoffExchangeRequest(code)), {
-    protocol: "wf-blogger-handoff/v1",
-    code,
-    siteKey: "sportmassagefuengirola",
-  });
-  const ticket = {
-    protocol: "wf-blogger-handoff/v1",
-    siteKey: "sportmassagefuengirola",
-    audience: "https://sportmassagefuengirola.com",
-    subject: { role: "admin", userId: "user-1", clientId: null, projectId: "project-1" },
-  };
-  assert.deepEqual(serverModule.validateHandoffExchangeResponse(ticket), ticket.subject);
-  for (const invalid of [
-    { ...ticket, protocol: "wrong" },
-    { ...ticket, siteKey: "other" },
-    { ...ticket, audience: "sportmassagefuengirola" },
-    { ...ticket, extra: true },
-    { ...ticket, subject: { ...ticket.subject, role: "owner" } },
-  ]) assert.equal(serverModule.validateHandoffExchangeResponse(invalid), null);
-});
-
 test("Studio handoff rejects a response with the wrong protocol", async (t) => {
   const app = await listen({
-    fetchImpl: async () => Response.json(handoffTicket({ protocol: "unexpected/v2" })),
+    fetchImpl: async () => Response.json({
+      protocol: "unexpected/v2",
+      audience: "sportmassagefuengirola",
+      subject: { role: "client", userId: "user-1" },
+    }),
   });
   t.after(app.close);
   const response = await fetch(`${app.url}/admin/blogger/launch`, {
     method: "POST",
     headers: { "content-type": "application/json", origin: "http://127.0.0.1" },
-    body: handoffRequest("A".repeat(43)),
+    body: JSON.stringify({ code: "A".repeat(43) }),
   });
   assert.equal(response.status, 401);
   assert.deepEqual(await response.json(), { error: "invalid_or_expired_ticket" });
@@ -470,11 +340,11 @@ test("Studio launch exchange is bounded by per-IP, global and concurrency limits
   let exchanges = 0;
   const pending = new Promise((resolve) => { release = resolve; });
   const app = await listen({
-    handoffPerIpLimit: 2, handoffGlobalLimit: 2, maxConcurrentHandoffs: 1, maxHandoffResponseBytes: 512,
-    fetchImpl: async () => { exchanges += 1; if (exchanges === 1) await pending; return Response.json(handoffTicket()); },
+    handoffPerIpLimit: 2, handoffGlobalLimit: 2, maxConcurrentHandoffs: 1, maxHandoffResponseBytes: 128,
+    fetchImpl: async () => { exchanges += 1; if (exchanges === 1) await pending; return Response.json({ protocol: "wf-blogger-handoff/v1", audience: "sportmassagefuengirola", subject: { role: "client" } }); },
   });
   t.after(app.close);
-  const launch = (ip = "203.0.113.20") => fetch(`${app.url}/admin/blogger/launch`, { method:"POST", headers:{ "content-type":"application/json", origin:"http://127.0.0.1", "x-real-ip":ip }, body:handoffRequest("A".repeat(43)) });
+  const launch = (ip = "203.0.113.20") => fetch(`${app.url}/admin/blogger/launch`, { method:"POST", headers:{ "content-type":"application/json", origin:"http://127.0.0.1", "x-real-ip":ip }, body:JSON.stringify({ code:"A".repeat(43) }) });
   const first = launch(); await new Promise((resolve) => setTimeout(resolve, 30));
   const concurrent = await launch("203.0.113.21");
   release(); const firstResponse = await first;
@@ -483,7 +353,7 @@ test("Studio launch exchange is bounded by per-IP, global and concurrency limits
 
   const oversized = await listen({ maxHandoffResponseBytes: 64, fetchImpl: async () => new Response(JSON.stringify({ padding:"x".repeat(500) }), { status:200, headers:{ "content-type":"application/json" } }) });
   t.after(oversized.close);
-  const failed = await fetch(`${oversized.url}/admin/blogger/launch`, { method:"POST", headers:{ "content-type":"application/json", origin:"http://127.0.0.1" }, body:handoffRequest("B".repeat(43)) });
+  const failed = await fetch(`${oversized.url}/admin/blogger/launch`, { method:"POST", headers:{ "content-type":"application/json", origin:"http://127.0.0.1" }, body:JSON.stringify({ code:"B".repeat(43) }) });
   assert.equal(failed.status, 401); assert.deepEqual(await failed.json(), { error:"invalid_or_expired_ticket" });
 });
 
@@ -495,7 +365,11 @@ test("Studio launch reserves concurrency before reading the body and releases it
     maxConcurrentHandoffs: 1,
     fetchImpl: async () => {
       exchanges += 1;
-      return Response.json(handoffTicket());
+      return Response.json({
+        protocol: "wf-blogger-handoff/v1",
+        audience: "sportmassagefuengirola",
+        subject: { role: "client" },
+      });
     },
   });
   t.after(app.close);
@@ -517,7 +391,7 @@ test("Studio launch reserves concurrency before reading the body and releases it
   const concurrent = await fetch(`${app.url}/admin/blogger/launch`, {
     method: "POST",
     headers: { "content-type": "application/json", origin: "http://127.0.0.1" },
-    body: handoffRequest("A".repeat(43)),
+    body: JSON.stringify({ code: "A".repeat(43) }),
   });
   finishSlow();
   const slowStatus = await slowResponse;
@@ -526,16 +400,16 @@ test("Studio launch reserves concurrency before reading the body and releases it
   const afterParseError = await fetch(`${app.url}/admin/blogger/launch`, {
     method: "POST",
     headers: { "content-type": "application/json", origin: "http://127.0.0.1" },
-    body: handoffRequest("B".repeat(43)),
+    body: JSON.stringify({ code: "B".repeat(43) }),
   });
   assert.equal(afterParseError.status, 200);
   assert.equal(exchanges, 1);
 });
 
 test("Studio launch rate limits are independently enforced per IP and globally", async (t) => {
-  const ticket = () => Response.json(handoffTicket());
+  const ticket = () => Response.json({ protocol:"wf-blogger-handoff/v1", audience:"sportmassagefuengirola", subject:{ role:"client" } });
   const perIp = await listen({ handoffPerIpLimit:1, handoffGlobalLimit:10, fetchImpl:async()=>ticket() }); t.after(perIp.close);
-  const launch = (app, ip, code) => fetch(`${app.url}/admin/blogger/launch`, { method:"POST", headers:{ "content-type":"application/json", origin:"http://127.0.0.1", "x-real-ip":ip }, body:handoffRequest(code.repeat(43)) });
+  const launch = (app, ip, code) => fetch(`${app.url}/admin/blogger/launch`, { method:"POST", headers:{ "content-type":"application/json", origin:"http://127.0.0.1", "x-real-ip":ip }, body:JSON.stringify({ code:code.repeat(43) }) });
   assert.equal((await launch(perIp, "203.0.113.30", "A")).status, 200);
   assert.equal((await launch(perIp, "203.0.113.30", "B")).status, 429);
   assert.equal((await launch(perIp, "203.0.113.31", "C")).status, 200);

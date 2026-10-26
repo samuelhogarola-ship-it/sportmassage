@@ -35,24 +35,10 @@ test("site releases inject Umami everywhere public only after explicit productio
   fs.writeFileSync(path.join(root, "index.html"), "<html><head></head><body>home</body></html>");
   fs.writeFileSync(path.join(root, "legal.html"), "<html><head></head><body>Analytics is currently disabled and no advertising cookies are used. If Umami is activated, it will measure aggregate, privacy-friendly visits without cookies or personal profiles.</body></html>");
   fs.writeFileSync(path.join(root, "propuesta/demo/index.html"), "<html><head></head><body>proposal</body></html>");
-  const adminAssets = {
-    "index.html": '<html><head><link rel="stylesheet" href="styles.css"></head><body><script type="module" src="./app.js"></script></body></html>',
-    "styles.css": "body { color: #123; }\n",
-    "app.js": 'import "./editor-schema.js"; import "./blogger-auth.js";\n',
-    "blogger-auth.js": 'import "./blogger-auth-core.js";\n',
-    "blogger-auth-core.js": "export const auth = true;\n",
-    "editor-schema.js": "export const schema = true;\n",
-  };
-  for (const [name, contents] of Object.entries(adminAssets)) {
-    fs.writeFileSync(path.join(root, "admin/blogger", name), contents);
-  }
-  fs.writeFileSync(path.join(root, "admin/blogger/not-allowlisted.txt"), "must not ship\n");
+  fs.writeFileSync(path.join(root, "admin/blogger/index.html"), "<html><head></head><body>admin</body></html>");
   fs.writeFileSync(path.join(root, ".env"), "SECRET=must-not-copy\n");
   fs.mkdirSync(path.join(root, "deploy"), { recursive: true });
-  fs.writeFileSync(path.join(root, "deploy/public-manifest.json"), JSON.stringify({ files: [
-    "index.html", "legal.html", "propuesta/demo/index.html",
-    ...Object.keys(adminAssets).map((name) => `admin/blogger/${name}`),
-  ] }));
+  fs.writeFileSync(path.join(root, "deploy/public-manifest.json"), JSON.stringify({ files: ["index.html", "legal.html", "propuesta/demo/index.html"] }));
   fs.writeFileSync(path.join(contentRoot, "fixture.json"), JSON.stringify({
     title: "Fixture", slug: "fixture", description: "Description", date: "2026-10-18",
     lang: "es", author: "Author", status: "published", image: "", tags: [], category: "", level: "", body: "Body",
@@ -70,13 +56,19 @@ test("site releases inject Umami everywhere public only after explicit productio
   assert.match(fs.readFileSync(path.join(enabled, "legal.html"), "utf8"), /Umami analytics is active/);
   assert.doesNotMatch(fs.readFileSync(path.join(enabled, "legal.html"), "utf8"), /currently disabled/);
   const bloggerEntry = fs.readFileSync(path.join(enabled, "admin/blogger/index.html"), "utf8");
-  assert.equal(bloggerEntry, adminAssets["index.html"]);
-  assert.doesNotMatch(bloggerEntry, /http-equiv="refresh"|admin\.webfuengirola\.com/i);
+  const directBloggerUrl = "https://admin.webfuengirola.com/acceso/blogger/sportmassagefuengirola";
+  const refreshTag = [...bloggerEntry.matchAll(/<meta\b([^>]*)>/gi)]
+    .find(([, attributes]) => /\bhttp-equiv="refresh"/i.test(attributes));
+  const refreshContent = refreshTag?.[1].match(/\bcontent="([^"]*)"/i)?.[1];
+  const refreshDestination = refreshContent?.match(/^\s*0\s*;\s*url=(.+)\s*$/i)?.[1];
+  assert.equal(refreshDestination, directBloggerUrl);
+  const fallbackAnchor = bloggerEntry.match(/<a\b([^>]*)>\s*Abrir Blogger\s*<\/a>/i);
+  const fallbackHref = fallbackAnchor?.[1].match(/\bhref="([^"]*)"/i)?.[1];
+  assert.equal(fallbackHref, directBloggerUrl);
+  assert.doesNotMatch(bloggerEntry, /\/cliente\/proyectos\/sportmassagefuengirola\/blogger/);
+  assert.doesNotMatch(bloggerEntry, /\/api\/|admin\/blogger\/login/);
   assert.doesNotMatch(bloggerEntry, /data-website-id|analytics\.example/);
-  for (const [name, contents] of Object.entries(adminAssets)) {
-    assert.equal(fs.readFileSync(path.join(enabled, "admin/blogger", name), "utf8"), contents);
-  }
-  assert.equal(fs.existsSync(path.join(enabled, "admin/blogger/not-allowlisted.txt")), false);
+  assert.equal(fs.existsSync(path.join(enabled, "admin/blogger/app.js")), false);
   assert.equal(fs.existsSync(path.join(enabled, ".env")), false);
 });
 

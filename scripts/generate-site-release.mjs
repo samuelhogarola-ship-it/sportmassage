@@ -54,6 +54,12 @@ function copyManifest(sourceRoot, destination, files) {
   }
 }
 
+function writeStudioBloggerEntry(destination) {
+  const target = path.join(destination, "admin/blogger/index.html");
+  fs.mkdirSync(path.dirname(target), { recursive: true, mode: 0o750 });
+  fs.writeFileSync(target, `<!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex,nofollow"><meta name="referrer" content="no-referrer"><meta http-equiv="Content-Security-Policy" content="default-src 'none';style-src 'unsafe-inline';base-uri 'none';form-action 'none';frame-ancestors 'none'"><meta http-equiv="refresh" content="0;url=https://admin.webfuengirola.com/acceso/blogger/sportmassagefuengirola"><title>Acceso a Blogger · Sport Massage Fuengirola</title><style>body{margin:0;min-height:100vh;display:grid;place-items:center;background:#f6f3ee;color:#102a35;font:16px/1.6 system-ui,sans-serif}main{max-width:34rem;padding:2rem;text-align:center}a{display:inline-block;margin-top:1rem;padding:.75rem 1rem;border-radius:.6rem;background:#102a35;color:#fff;font-weight:700;text-decoration:none}</style></head><body><main><h1>Blogger · Sport Massage Fuengirola</h1><p>Acceso protegido mediante Web Fuengirola Studio.</p><a href="https://admin.webfuengirola.com/acceso/blogger/sportmassagefuengirola">Abrir Blogger</a></main></body></html>`, { mode: 0o640 });
+}
+
 function validateReferences(destination, files) {
   const included = new Set(files);
   for (const relative of files.filter((file) => file.endsWith(".html"))) {
@@ -93,7 +99,7 @@ export async function generateSiteRelease({
   if (destination === sourceRoot || !destination.startsWith(`${sourceRoot}${path.sep}`)) throw new Error("Release root must remain inside the project root");
   const files = readManifest(sourceRoot, manifestPath);
   fs.rmSync(destination, { recursive: true, force: true }); fs.mkdirSync(destination, { recursive: true, mode: 0o750 });
-  copyManifest(sourceRoot, destination, files); validateReferences(destination, files);
+  copyManifest(sourceRoot, destination, files); writeStudioBloggerEntry(destination); validateReferences(destination, files);
   await generateBlog({ root: sourceRoot, contentRoot, mediaRoot, outputRoot: path.join(destination, "blog"), umamiProductionVerified: false });
   for (const required of ["index.html", "legal.html", "blog/index.html"]) {
     const target = path.join(destination, required); if (!fs.existsSync(target) || !fs.lstatSync(target).isFile()) throw new Error(`Required release output is missing: ${required}`);
