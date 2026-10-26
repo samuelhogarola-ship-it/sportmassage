@@ -27,8 +27,6 @@ body {
     BlinkMacSystemFont,
     "Segoe UI",
     sans-serif;
-  max-width: 100%;
-  overflow-x: hidden;
 }
 
 button,
@@ -45,7 +43,6 @@ button {
   color: #fff;
   cursor: pointer;
   font-weight: 700;
-  min-height: 44px;
   padding: 0.7rem 0.95rem;
 }
 
@@ -116,17 +113,16 @@ select {
   border: 1px solid var(--line);
   border-radius: 8px;
   color: var(--ink);
-  font-size: 16px;
   width: 100%;
 }
 
 input {
-  min-height: 44px;
+  min-height: 42px;
   padding: 0.55rem 0.7rem;
 }
 
 select {
-  min-height: 44px;
+  min-height: 42px;
   padding: 0.55rem 0.7rem;
 }
 
@@ -136,7 +132,6 @@ select {
   align-items: center;
   color: #fff;
   font-weight: 700;
-  min-height: 44px;
   padding: 0.7rem 0.95rem;
   text-decoration: none;
 }
@@ -250,7 +245,6 @@ textarea {
   border-bottom: 1px solid var(--line);
   display: flex;
   gap: 0.35rem;
-  overflow-x: auto;
   padding: 0.55rem;
 }
 
@@ -269,16 +263,15 @@ textarea {
   align-items: center;
   border-bottom: 1px solid var(--line);
   display: flex;
-  flex-wrap: nowrap;
+  flex-wrap: wrap;
   gap: 0.35rem;
-  overflow-x: auto;
   padding: 0.55rem;
 }
 
 .toolbar button {
   background: #eef1f7;
   color: var(--ink);
-  min-width: 44px;
+  min-width: 42px;
   padding: 0.45rem 0.6rem;
 }
 
@@ -426,13 +419,10 @@ textarea {
 }
 
 .file-button {
-  align-items: center;
   background: #eef1f7;
   border-radius: 8px;
   cursor: pointer;
-  display: inline-flex;
   font-weight: 700;
-  min-height: 44px;
   padding: 0.55rem 0.75rem;
 }
 
@@ -536,21 +526,7 @@ textarea {
   }
 
   .sidebar {
-    border-bottom: 1px solid var(--line);
-    border-right: 0;
-    max-height: 46vh;
     min-height: auto;
-    overflow-y: auto;
-  }
-
-  .post-list {
-    display: flex;
-    overflow-x: auto;
-    padding-bottom: 0.35rem;
-  }
-
-  .post-card {
-    flex: 0 0 min(78vw, 280px);
   }
 
   .meta-grid {
@@ -571,32 +547,6 @@ textarea {
   .actions {
     align-items: stretch;
     flex-direction: column;
-  }
-
-  .topbar {
-    background: var(--bg);
-    position: sticky;
-    top: 0;
-    z-index: 30;
-  }
-
-  .actions {
-    background: var(--bg);
-    bottom: 0;
-    padding: 0.5rem 0;
-    position: sticky;
-    z-index: 31;
-  }
-
-  .editor {
-    min-width: 0;
-    padding: 0.75rem;
-  }
-
-  .workspace,
-  .writing-pane,
-  .asset-pane {
-    min-width: 0;
   }
 }
 
@@ -638,20 +588,6 @@ textarea {
   font-size: 0.85rem;
   font-weight: 700;
   gap: 6px;
-}
-
-.login-card .remember-control {
-  align-items: center;
-  cursor: pointer;
-  display: flex;
-  gap: 10px;
-  min-height: 44px;
-}
-
-.remember-control input[type="checkbox"] {
-  flex: 0 0 20px;
-  min-height: 20px;
-  width: 20px;
 }
 
 .login-eyebrow {
