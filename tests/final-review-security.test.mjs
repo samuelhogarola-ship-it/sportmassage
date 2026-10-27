@@ -133,6 +133,7 @@ test("isolated build receives only an allowlisted environment", async () => {
 test("deployment documentation forbids a website-local Blogger authentication service", () => {
   const deploymentGuide = fs.readFileSync(path.join(repo, "docs/blogger-deployment.md"), "utf8");
   assert.match(deploymentGuide, /must not run a Blogger login service/i);
-  assert.match(deploymentGuide, /portal\.webfuengirola\.com\/acceso\/blogger\/sportmassagefuengirola/);
+  assert.match(deploymentGuide, /https:\/\/blogger\.sportmassagefuengirola\.com\//);
+  assert.doesNotMatch(deploymentGuide, /portal\.webfuengirola\.com\/acceso\/blogger\/sportmassagefuengirola/);
   assert.doesNotMatch(deploymentGuide, /same-origin login shell|BLOGGER_DIRECT_PASSWORD_HASH|BLOGGER_SESSION_SECRET/);
 });

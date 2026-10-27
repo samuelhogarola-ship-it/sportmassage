@@ -7,9 +7,9 @@ const root = path.resolve(import.meta.dirname, "..");
 
 test("direct Git deployments preserve the central Blogger gateway", () => {
   const html = fs.readFileSync(path.join(root, "admin/blogger/index.html"), "utf8");
-  assert.match(html, /https:\/\/portal\.webfuengirola\.com\/acceso\/blogger\/sportmassagefuengirola/);
+  assert.match(html, /https:\/\/blogger\.sportmassagefuengirola\.com\//);
   assert.match(html, /location\.replace/);
-  assert.doesNotMatch(html, /<form|type="password"|admin\.webfuengirola\.com|<iframe/i);
+  assert.doesNotMatch(html, /<form|type="password"|(?:admin|portal)\.webfuengirola\.com|<iframe/i);
 });
 
 test("site configuration keeps the legacy panel key and declares the canonical Studio tenant", () => {

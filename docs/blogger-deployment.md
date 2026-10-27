@@ -1,10 +1,10 @@
 # Sport Massage Blogger gateway
 
-`https://sportmassagefuengirola.com/admin/blogger/` is a static English gateway. It redirects to the existing central Blogger editor at:
+`https://sportmassagefuengirola.com/admin/blogger/` is a static English compatibility gateway. It redirects to the branded door of the existing central Blogger editor at:
 
-`https://portal.webfuengirola.com/acceso/blogger/sportmassagefuengirola`
+`https://blogger.sportmassagefuengirola.com/`
 
-This website must not run a Blogger login service, session service, content API, credential store, or editor backend. It must not proxy `/api/admin`, `/api/blogger`, `/api/posts`, or `/api/build`. The independent Blogger credential and its session live only in the existing `wf-studio-panel` application on `portal.webfuengirola.com`.
+This website must not run a Blogger login service, session service, content API, credential store, or editor backend. It must not proxy `/api/admin`, `/api/blogger`, `/api/posts`, or `/api/build`. The independent Blogger credential, temporary panel-ticket exchange, and session all live in the single existing `wf-studio-panel` application. Coolify presents that same application through the Sport Massage subdomain; it is not a second deployment.
 
 The central editor keeps the established GitHub-backed publication flow for `samuelhogarola-ship-it/sportmassage`. The static website repository continues to contain public site and blog output, but it does not authenticate authors.
 
@@ -13,8 +13,8 @@ The central editor keeps the established GitHub-backed publication flow for `sam
 Before deployment:
 
 1. Run `npm test`, `npm run check`, and `npm run build:site`.
-2. Verify the source and generated `/admin/blogger/index.html` contain the exact portal URL above.
-3. Verify the gateway contains no form, password field, iframe, reference to `admin.webfuengirola.com`, or same-origin Blogger API.
+2. Verify the source and generated `/admin/blogger/index.html` contain the exact branded URL above.
+3. Verify the gateway contains no form, password field, iframe, reference to either Web Fuengirola panel host, or same-origin Blogger API.
 4. Verify the repository contains no local Blogger server or service configuration.
 5. Verify no article content changed as part of an access-only deployment.
 

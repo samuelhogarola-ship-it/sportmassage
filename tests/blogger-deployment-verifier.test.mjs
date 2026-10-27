@@ -3,10 +3,10 @@ import test from "node:test";
 
 import { verifyIndependentBlogger } from "../scripts/verify-blogger-deployment.mjs";
 
-const destination = "https://portal.webfuengirola.com/acceso/blogger/sportmassagefuengirola";
+const destination = "https://blogger.sportmassagefuengirola.com/";
 const gateway = `<!doctype html><html lang="en"><head><meta http-equiv="refresh" content="0; url=${destination}"><script>location.replace('${destination}')</script></head><body><a href="${destination}">Continue to Blogger</a></body></html>`;
 
-test("deployment verifier accepts only the exact neutral-host central gateway", async () => {
+test("deployment verifier accepts only the exact branded central gateway", async () => {
   const calls = [];
   const fetchGateway = async (url, init) => {
     calls.push({ url, init });
