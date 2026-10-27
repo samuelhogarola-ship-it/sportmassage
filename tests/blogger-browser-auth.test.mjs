@@ -6,12 +6,12 @@ import test from "node:test";
 const browserAuth = await import("../admin/blogger/blogger-auth-core.js").catch(() => ({}));
 const root = path.resolve(import.meta.dirname, "..");
 
-test("Blogger exposes no self-service password recovery or change UI", () => {
+test("Blogger gateway exposes no local credentials, recovery or change UI", () => {
   const html = fs.readFileSync(path.join(root, "admin/blogger/index.html"), "utf8");
   assert.doesNotMatch(html, /(?:recover|recovery|reset|change|recuperar|restablecer|cambiar)[^<]*(?:password|contrase(?:ñ|n)a)/i);
   assert.doesNotMatch(html, /href=["'][^"']*(?:recover|reset|password)/i);
-  assert.doesNotMatch(html, /name=["']remember["'][^>]*\bchecked\b/i);
-  assert.match(html, /id=["']bloggerLogout["'][^>]*>[\s\S]*?Cerrar sesi[oó]n/i);
+  assert.doesNotMatch(html, /<form|type=["']password["']|name=["']remember["']/i);
+  assert.match(html, /https:\/\/portal\.webfuengirola\.com\/acceso\/blogger\/sportmassagefuengirola/);
 });
 
 test("Studio handoff fragments are ignored in direct-only mode without issuing a request", async () => {
