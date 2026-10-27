@@ -1,24 +1,32 @@
 import assert from "node:assert/strict";
+import fs from "node:fs";
+import path from "node:path";
 import test from "node:test";
 
 const browserAuth = await import("../admin/blogger/blogger-auth-core.js").catch(() => ({}));
+const root = path.resolve(import.meta.dirname, "..");
 
-test("Studio launch codes are consumed from the URL fragment and sent only in a POST body", async () => {
+test("Blogger exposes no self-service password recovery or change UI", () => {
+  const html = fs.readFileSync(path.join(root, "admin/blogger/index.html"), "utf8");
+  assert.doesNotMatch(html, /(?:recover|recovery|reset|change|recuperar|restablecer|cambiar)[^<]*(?:password|contrase(?:ñ|n)a)/i);
+  assert.doesNotMatch(html, /href=["'][^"']*(?:recover|reset|password)/i);
+  assert.doesNotMatch(html, /name=["']remember["'][^>]*\bchecked\b/i);
+  assert.match(html, /id=["']bloggerLogout["'][^>]*>[\s\S]*?Cerrar sesi[oó]n/i);
+});
+
+test("Studio handoff fragments are ignored in direct-only mode without issuing a request", async () => {
   assert.equal(typeof browserAuth.consumeStudioLaunchFragment, "function");
   const requests = [];
   const replacements = [];
-  const location = { href: "https://sportmassagefuengirola.com/admin/blogger/#code=A_secret_launch_code" };
+  const location = { href: `https://sportmassagefuengirola.com/admin/blogger/#protocol=wf-blogger-handoff%2Fv1&code=${"A".repeat(43)}&siteKey=sportmassagefuengirola` };
   const consumed = await browserAuth.consumeStudioLaunchFragment({
     location,
     replaceUrl: (value) => replacements.push(value),
     request: async (url, options) => { requests.push({ url, options }); },
   });
-  assert.equal(consumed, true);
-  assert.deepEqual(replacements, ["/admin/blogger/"]);
-  assert.equal(requests[0].url, "/admin/blogger/launch");
-  assert.equal(requests[0].options.method, "POST");
-  assert.deepEqual(JSON.parse(requests[0].options.body), { code: "A_secret_launch_code" });
-  assert.equal(requests[0].url.includes("A_secret_launch_code"), false);
+  assert.equal(consumed, false);
+  assert.deepEqual(replacements, []);
+  assert.deepEqual(requests, []);
 });
 
 test("query-string launch codes are ignored so they cannot be propagated through request targets", async () => {

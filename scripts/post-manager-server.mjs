@@ -15,10 +15,8 @@ import {
 import { createBlogContentStore } from "./blog-content-store.mjs";
 import { createStaticReleaseBuildRunner } from "./blog-build-runner.mjs";
 
-export const HANDOFF_PROTOCOL = "wf-blogger-handoff/v1";
-export const BLOGGER_AUDIENCE = "sportmassagefuengirola";
+export const BLOGGER_SITE_KEY = "sportmassagefuengirola";
 const COOKIE_NAME = "__Host-sportmassage_blogger_session";
-const CODE_PATTERN = /^[A-Za-z0-9_-]{43}$/;
 const MAX_LOGIN_BODY = 8 * 1024;
 const MAX_HANDOFF_BODY = 4 * 1024;
 const MAX_POST_BODY = 512 * 1024;
@@ -82,19 +80,19 @@ function positiveInteger(value, fallback, maximum, label) {
   return parsed;
 }
 
-function readConfiguration(projectRoot, env) {
+export function loadRuntimeConfig(env, projectRoot = process.cwd()) {
   const root = path.resolve(projectRoot);
+  if (env.BLOGGER_STUDIO_HANDOFF_ENABLED === "true") {
+    throw new Error("Studio handoff is disabled for this direct-only Blogger");
+  }
+  if (env.BLOGGER_STUDIO_HANDOFF_ENABLED && env.BLOGGER_STUDIO_HANDOFF_ENABLED !== "false") {
+    throw new Error("BLOGGER_STUDIO_HANDOFF_ENABLED must be true or false");
+  }
   const secretConfiguration = {
     BLOGGER_SESSION_SECRET: required(env, "BLOGGER_SESSION_SECRET"),
-    BLOGGER_HANDOFF_SECRET: required(env, "BLOGGER_HANDOFF_SECRET"),
   };
-  const { sessionSecret, handoffSecret } = validateRuntimeSecrets(secretConfiguration);
+  const { sessionSecret } = validateRuntimeSecrets(secretConfiguration, { handoffEnabled: false });
   const publicOrigin = exactOrigin(required(env, "BLOGGER_PUBLIC_ORIGIN"), "BLOGGER_PUBLIC_ORIGIN");
-  const studioOrigin = exactOrigin(required(env, "BLOGGER_STUDIO_ORIGIN"), "BLOGGER_STUDIO_ORIGIN");
-  const exchangeUrl = new URL(required(env, "BLOGGER_STUDIO_EXCHANGE_URL"));
-  if (exchangeUrl.protocol !== "https:" || exchangeUrl.origin !== studioOrigin || exchangeUrl.pathname !== "/api/tool-launch/exchange") {
-    throw new Error("BLOGGER_STUDIO_EXCHANGE_URL is invalid");
-  }
   const username = required(env, "BLOGGER_DIRECT_USERNAME");
   if (!/^[A-Za-z0-9][A-Za-z0-9._@+-]{2,127}$/.test(username)) {
     throw new Error("BLOGGER_DIRECT_USERNAME is invalid");
@@ -108,11 +106,11 @@ function readConfiguration(projectRoot, env) {
   return {
     root,
     publicOrigin,
-    studioOrigin,
-    exchangeUrl: exchangeUrl.href,
     mutationOrigin,
     sessionSecret,
-    handoffSecret,
+    studioHandoffEnabled: false,
+    siteKey: BLOGGER_SITE_KEY,
+    scope: Object.freeze(["blogger"]),
     username,
     passwordHash,
     stateDirectory,
@@ -120,6 +118,12 @@ function readConfiguration(projectRoot, env) {
     mediaRoot: configuredPath(root, env.BLOGGER_MEDIA_ROOT, "content/blog/media", "Media root"),
     outputRoot: configuredPath(root, env.BLOGGER_OUTPUT_ROOT, path.join(stateDirectory, "public"), "Output root"),
     sessionTtlMs: positiveInteger(env.BLOGGER_SESSION_TTL_SECONDS, 8 * 60 * 60, 24 * 60 * 60, "Session TTL") * 1_000,
+    rememberedSessionTtlMs: positiveInteger(
+      env.BLOGGER_REMEMBERED_SESSION_TTL_SECONDS,
+      30 * 24 * 60 * 60,
+      90 * 24 * 60 * 60,
+      "Remembered session TTL",
+    ) * 1_000,
     loginAttempts: positiveInteger(env.BLOGGER_LOGIN_MAX_ATTEMPTS, 5, 20, "Login attempts"),
     buildTimeoutMs: positiveInteger(env.BLOGGER_BUILD_TIMEOUT_MS, 120_000, 15 * 60 * 1_000, "Build timeout"),
   };
@@ -218,8 +222,7 @@ function decodeDataUrl(value) {
 
 function publicCapabilities() {
   return {
-    protocol: HANDOFF_PROTOCOL,
-    audience: BLOGGER_AUDIENCE,
+    siteKey: BLOGGER_SITE_KEY,
     capabilities: ["posts", "media", "publish", "unpublish"],
   };
 }
@@ -238,30 +241,23 @@ export async function verifyDirectCredentials({
 export function createPostManagerServer({
   projectRoot,
   env = process.env,
-  fetchImpl = fetch,
   build,
   maxSessions = 256,
   maxRateLimitEntries = 1_024,
-  handoffPerIpLimit = 5,
-  handoffGlobalLimit = 50,
-  maxConcurrentHandoffs = 4,
-  maxHandoffResponseBytes = 16 * 1024,
   accessSync = fs.accessSync,
 } = {}) {
-  const config = readConfiguration(projectRoot, env);
+  const config = loadRuntimeConfig(env, projectRoot);
   const sessions = createSessionStore({
     maxEntries: maxSessions,
     ttlMs: config.sessionTtlMs,
+    rememberedTtlMs: config.rememberedSessionTtlMs,
+    persistentFile: path.join(config.stateDirectory, "sessions.json"),
     secret: config.sessionSecret,
   });
   const limiter = createRateLimiter({
     maxEntries: maxRateLimitEntries,
     limit: config.loginAttempts,
   });
-  const handoffIpLimiter = createRateLimiter({ maxEntries: maxRateLimitEntries, limit: handoffPerIpLimit });
-  const handoffGlobalLimiter = createRateLimiter({ maxEntries: 1, limit: handoffGlobalLimit });
-  if (![maxConcurrentHandoffs, maxHandoffResponseBytes].every((value) => Number.isInteger(value) && value > 0)) throw new Error("Handoff limits are invalid");
-  let activeHandoffs = 0;
   const audit = createAuditLogger(config.stateDirectory);
   const buildBlog = build ?? createStaticReleaseBuildRunner({
     root: config.root,
@@ -286,15 +282,23 @@ export function createPostManagerServer({
 
   function requireSession(request) {
     const session = currentSession(request);
-    if (!session || !session.scope?.includes("blogger")) throw new RequestError(401, "authentication_required");
+    if (
+      !session ||
+      session.source !== "direct" ||
+      session.siteKey !== BLOGGER_SITE_KEY ||
+      !Array.isArray(session.scope) ||
+      session.scope.length !== 1 ||
+      session.scope[0] !== "blogger"
+    ) throw new RequestError(401, "authentication_required");
     return session;
   }
 
-  function establish(request, response, data) {
+  function establish(request, response, data, { remembered = false } = {}) {
     const prior = parseCookies(request)[COOKIE_NAME];
     if (prior) sessions.destroy(prior);
-    const token = sessions.create(data);
-    json(response, 200, { authenticated: true }, { "Set-Cookie": sessionCookie(token, Math.floor(config.sessionTtlMs / 1_000)) });
+    const token = sessions.create(data, { remembered });
+    const ttlMs = remembered ? config.rememberedSessionTtlMs : config.sessionTtlMs;
+    json(response, 200, { authenticated: true }, { "Set-Cookie": sessionCookie(token, Math.floor(ttlMs / 1_000)) });
   }
 
   function readiness() {
@@ -328,16 +332,6 @@ export function createPostManagerServer({
     return { ready: Object.values(checks).every(Boolean), checks };
   }
 
-  async function boundedResponseJson(response) {
-    const declared = response.headers.get("content-length");
-    if (declared && Number(declared) > maxHandoffResponseBytes) throw new Error("exchange_response_invalid");
-    const chunks = []; let length = 0;
-    for await (const chunk of response.body ?? []) {
-      length += chunk.length; if (length > maxHandoffResponseBytes) throw new Error("exchange_response_invalid"); chunks.push(Buffer.from(chunk));
-    }
-    return JSON.parse(new TextDecoder("utf8", { fatal: true }).decode(Buffer.concat(chunks)));
-  }
-
   return http.createServer(async (request, response) => {
     try {
       const url = new URL(request.url, config.publicOrigin);
@@ -359,6 +353,7 @@ export function createPostManagerServer({
           return;
         }
         const body = await readJson(request, MAX_LOGIN_BODY);
+        if (body.remember !== undefined && typeof body.remember !== "boolean") throw new RequestError(400, "invalid_request");
         const valid = await verifyDirectCredentials({
           suppliedUsername: body.username,
           suppliedPassword: body.password,
@@ -372,50 +367,10 @@ export function createPostManagerServer({
         audit({ event: "session_created", origin: "direct" });
         establish(request, response, {
           source: "direct",
-          scope: ["blogger"],
-          subject: { role: "blogger_editor", username: config.username },
-        });
+          siteKey: config.siteKey,
+          scope: config.scope,
+        }, { remembered: body.remember === true });
         return;
-      }
-
-      if (method === "POST" && url.pathname === "/admin/blogger/launch") {
-        requireOrigin(request, config.mutationOrigin);
-        if (activeHandoffs >= maxConcurrentHandoffs) { json(response, 429, { error: "launch_unavailable" }); return; }
-        const ipAttempt = handoffIpLimiter.consume(clientKey(request));
-        if (!ipAttempt.allowed) { json(response, 429, { error: "launch_unavailable" }); return; }
-        const globalAttempt = handoffGlobalLimiter.consume("global");
-        if (!globalAttempt.allowed) { json(response, 429, { error: "launch_unavailable" }); return; }
-        activeHandoffs += 1;
-        try {
-          const body = await readJson(request, MAX_HANDOFF_BODY);
-          if (typeof body?.code !== "string" || !CODE_PATTERN.test(body.code)) throw new RequestError(400, "invalid_launch_code");
-          let ticket;
-          try {
-            const exchange = await fetchImpl(config.exchangeUrl, {
-              method: "POST", headers: { Authorization: `Bearer ${config.handoffSecret}`, "Content-Type": "application/json" },
-              body: JSON.stringify({ code: body.code, audience: BLOGGER_AUDIENCE }), signal: AbortSignal.timeout(8_000),
-            });
-            if (!exchange.ok) throw new Error("exchange_rejected");
-            ticket = await boundedResponseJson(exchange);
-          } catch { throw new RequestError(401, "invalid_or_expired_ticket"); }
-          if (
-            !ticket ||
-            typeof ticket !== "object" ||
-            Array.isArray(ticket) ||
-            ticket.protocol !== HANDOFF_PROTOCOL ||
-            ticket.audience !== BLOGGER_AUDIENCE ||
-            !ticket.subject ||
-            typeof ticket.subject !== "object" ||
-            Array.isArray(ticket.subject)
-          ) {
-            throw new RequestError(401, "invalid_or_expired_ticket");
-          }
-          audit({ event: "session_created", origin: "studio" });
-          establish(request, response, { source: "studio", scope: ["blogger"], subject: ticket.subject });
-          return;
-        } finally {
-          activeHandoffs -= 1;
-        }
       }
 
       if (method === "GET" && url.pathname === "/api/admin/session") {
@@ -423,8 +378,8 @@ export function createPostManagerServer({
         json(response, 200, {
           authenticated: true,
           source: session.source,
+          siteKey: session.siteKey,
           scope: session.scope,
-          subject: session.subject,
         });
         return;
       }

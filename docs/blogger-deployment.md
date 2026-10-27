@@ -4,10 +4,10 @@ The public blog is generated HTML. The editor service only writes source content
 
 ## Activation gates
 
-Keep Blogger disabled in Studio until all of these checks pass over HTTPS:
+Do not announce the independent Blogger access until all of these checks pass over HTTPS:
 
 1. Mount `content/blog`, `content/blog/media`, and `.blogger-state` on persistent storage owned by the service account with shared group `www-data`. Directories are `0750`, generated files are `0640`, and the service runs with `UMask=0027`, so Nginx can traverse/read releases without write access.
-2. Fill every required `BLOGGER_*` value in a protected environment file. Use independent strong session and handoff secrets. Direct login also requires `BLOGGER_DIRECT_USERNAME` and a scrypt hash in `BLOGGER_DIRECT_PASSWORD_HASH`; never store the plain password. Generate the hash through standard input so the password does not appear in the process arguments:
+2. Fill the required values in protected Coolify environment variables: `BLOGGER_PUBLIC_ORIGIN`, `BLOGGER_DIRECT_USERNAME`, `BLOGGER_DIRECT_PASSWORD_HASH`, and a strong random `BLOGGER_SESSION_SECRET`. Set `BLOGGER_STUDIO_HANDOFF_ENABLED=false`. Do not configure a Studio exchange URL or handoff secret. Never store the plain Blogger password. Generate its scrypt hash through standard input so the password does not appear in process arguments or shell history:
 
    ```sh
    read -s BLOGGER_PASSWORD
@@ -17,13 +17,13 @@ Keep Blogger disabled in Studio until all of these checks pass over HTTPS:
    ```
 
    Store the printed hash as `BLOGGER_DIRECT_PASSWORD_HASH` in the protected environment file.
-3. Configure Studio to exchange one-time codes for the exact audience `sportmassagefuengirola`.
-4. Serve the public site and `/admin/blogger/` from the generated `.blogger-state/public/current` release, and route `/api/` to the service without exposing its loopback port directly. The generated admin entry redirects to the canonical Studio Blogger; never serve the retired checkout editor assets.
-5. Confirm `GET /.well-known/wf-blogger.json` returns discovery capabilities and `GET /api/blogger/health` returns `200` with redacted boolean checks. Health intentionally returns `503` when there is no active release, content/state permissions are unusable, or transaction recovery remains unresolved. Neither response contains credentials, paths, launch codes, or analytics identifiers.
-6. Verify direct login grants only the `blogger` scope, Studio launch records the `studio` audit origin, and logout invalidates the session.
-7. Publish and unpublish a fixture post, then force a build failure and confirm source/public rollback before using real content.
+   The normal session lasts `BLOGGER_SESSION_TTL_SECONDS` (eight hours by default). “Recordarme” is opt-in and uses `BLOGGER_REMEMBERED_SESSION_TTL_SECONDS` (30 days by default, capped at 90 days). Rotate `BLOGGER_SESSION_SECRET` whenever every remembered session must be invalidated.
+3. Serve the public site and `/admin/blogger/` from the generated `.blogger-state/public/current` release, and route `/api/` plus `/admin/blogger/login` to the sidecar without exposing its loopback port directly. The generated admin entry is the independent same-origin login shell; it must not redirect to Web Fuengirola Studio.
+4. Confirm `GET /.well-known/wf-blogger.json` returns discovery capabilities and `GET /api/blogger/health` returns `200` with redacted boolean checks. Health intentionally returns `503` when there is no active release, content/state permissions are unusable, or transaction recovery remains unresolved. Neither response contains credentials, paths, launch codes, or analytics identifiers.
+5. Verify direct login creates only the fixed `sportmassagefuengirola` / `blogger` session, `/admin/blogger/launch` returns 404, and logout invalidates the session.
+6. In a separate staging checkout with disposable fixture content, publish and unpublish a fixture post, then force a build failure and confirm source/public rollback. Never run this recovery drill against the production article dataset; the production activation smoke test is read-only.
 
-If any check fails, keep the Studio tool disabled. Do not weaken origin checks or put secrets in static files.
+If any check fails, keep the direct endpoint private. Do not weaken origin checks or put secrets in static files.
 
 ## Content and recovery
 
@@ -35,11 +35,29 @@ Each mutation snapshots content and writes `.blogger-state/transaction/journal.j
 
 `UMAMI_WEBSITE_ID` and `UMAMI_SCRIPT_URL` must stay empty until a real Sport Massage site UUID and HTTPS collector URL are available. Independently keep `UMAMI_PRODUCTION_VERIFIED=false`. Verify the production collector and site registration out of band, review the legal copy, and only then set the gate to `true`. The generator injects the tracker across public HTML only when the UUID, HTTPS URL, and verification gate all pass; admin HTML is excluded.
 
-`/admin/blogger/` is a stable, credential-free entry point. It redirects the browser to Sport Massage's canonical Blogger page in Studio, where Studio owns authentication and the editing session. No launch code or secret is embedded in the generated site.
+`/admin/blogger/` is the stable, independent entry point. Its username and password belong only to the Sport Massage Blogger tool. No launch code, portal session, Studio SSO, or secret is embedded in the generated site.
 
 ## Site identity compatibility
 
-The existing `.web-core/site.json` registry and panel route keep the historical `sportmassage` key. Blogger declares `sportmassagefuengirola` separately as its canonical Studio tenant and handoff audience, with `sportmassage` listed only as a discovery/configuration alias. Authentication remains fail-closed: the runtime sends and accepts only the canonical `sportmassagefuengirola` audience during the one-time Studio exchange.
+The existing `.web-core/site.json` registry and panel route keep the historical `sportmassage` key. Blogger uses `sportmassagefuengirola` as its fixed runtime site identity, with `sportmassage` retained only as a discovery/configuration alias. Every authenticated content endpoint requires the exact direct session claims for that site and the single `blogger` scope.
+
+## Owner-only credential reset
+
+Sofía cannot recover, change, or reset this password from the browser. The Blogger service intentionally exposes no recovery endpoint, and the portal password/reset flows are unrelated to this separate tool credential. Only the owner may rotate it from the protected deployment environment:
+
+1. Read the authorized new value from the password manager into standard input.
+2. Generate a new scrypt hash locally; never place plaintext in shell history:
+
+   ```sh
+   read -rs BLOGGER_PASSWORD
+   printf '%s' "$BLOGGER_PASSWORD" | node scripts/generate-blogger-password-hash.mjs
+   unset BLOGGER_PASSWORD
+   ```
+
+3. In protected Coolify variables, update `BLOGGER_DIRECT_PASSWORD_HASH` and rotate `BLOGGER_SESSION_SECRET` to a new strong random value. Rotating the session secret invalidates every existing Blogger cookie.
+4. Restart only the Blogger sidecar. Confirm an old cookie receives `401`, then confirm the new direct login succeeds at `https://sportmassagefuengirola.com/admin/blogger/`.
+
+Never send the hash, session secret, or plaintext password through the client portal, a ticket, source control, or a static file.
 
 ## Generated blog and verification
 

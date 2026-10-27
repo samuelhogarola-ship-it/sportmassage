@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
+import path from "node:path";
 import test from "node:test";
 
 const auth = await import("../scripts/blogger-launch-session.mjs").catch(
@@ -52,6 +53,48 @@ test("session store expires records and stays bounded", () => {
   now += 101;
   assert.equal(store.get(second), null);
   assert.equal(store.size, 0);
+});
+
+test("rotating the owner-managed session secret invalidates every existing cookie", () => {
+  const first = auth.createSessionStore({
+    secret: "session_4Yz!Q9mP2vK7xN5cR8tL3wD6hF1sJ0aB",
+  });
+  const cookie = first.create({ source: "direct", siteKey: "sportmassagefuengirola", scope: ["blogger"] });
+  const rotated = auth.createSessionStore({
+    secret: "rotated_8Ks!M4vQ1xC9pT6wR2yH7nD5jL0aF3zB",
+  });
+
+  assert.equal(rotated.get(cookie), null);
+});
+
+test("password hash CLI reads stdin only and prints only the encoded hash", async () => {
+  const script = path.resolve(import.meta.dirname, "../scripts/generate-blogger-password-hash.mjs");
+  const password = "Synthetic-Owner-Reset-2026!";
+  const run = (args, input = "") => new Promise((resolve, reject) => {
+    const child = spawn(process.execPath, [script, ...args], { stdio: ["pipe", "pipe", "pipe"] });
+    const stdout = [];
+    const stderr = [];
+    child.stdout.on("data", chunk => stdout.push(chunk));
+    child.stderr.on("data", chunk => stderr.push(chunk));
+    child.once("error", reject);
+    child.once("close", code => resolve({
+      code,
+      stdout: Buffer.concat(stdout).toString("utf8"),
+      stderr: Buffer.concat(stderr).toString("utf8"),
+    }));
+    child.stdin.end(input);
+  });
+
+  const generated = await run([], password);
+  assert.equal(generated.code, 0);
+  assert.match(generated.stdout, /^scrypt\$v1\$[^\n]+\n$/);
+  assert.equal(generated.stdout.includes(password), false);
+  assert.equal(generated.stderr, "");
+
+  const refused = await run([password]);
+  assert.equal(refused.code, 2);
+  assert.equal(refused.stdout, "");
+  assert.equal(refused.stderr.includes(password), false);
 });
 
 test("rate limiter is bounded and resets after its window", () => {

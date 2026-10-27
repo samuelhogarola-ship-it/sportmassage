@@ -9,6 +9,7 @@ Group=www-data
 UMask=0027
 WorkingDirectory=/srv/sportmassage/current
 EnvironmentFile=/etc/sportmassage/blogger.env
+Environment=BLOGGER_STUDIO_HANDOFF_ENABLED=false
 ExecStart=/usr/bin/node scripts/post-manager-server.mjs
 Restart=on-failure
 RestartSec=5
