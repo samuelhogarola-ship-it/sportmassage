@@ -1,7 +1,16 @@
 import assert from "node:assert/strict";
+import fs from "node:fs";
+import path from "node:path";
 import test from "node:test";
 
 const browserAuth = await import("../admin/blogger/blogger-auth-core.js").catch(() => ({}));
+const root = path.resolve(import.meta.dirname, "..");
+
+test("Blogger exposes no self-service password recovery or change UI", () => {
+  const html = fs.readFileSync(path.join(root, "admin/blogger/index.html"), "utf8");
+  assert.doesNotMatch(html, /(?:recover|recovery|reset|change|recuperar|restablecer|cambiar)[^<]*(?:password|contrase(?:ñ|n)a)/i);
+  assert.doesNotMatch(html, /href=["'][^"']*(?:recover|reset|password)/i);
+});
 
 test("Studio handoff fragments are ignored in direct-only mode without issuing a request", async () => {
   assert.equal(typeof browserAuth.consumeStudioLaunchFragment, "function");

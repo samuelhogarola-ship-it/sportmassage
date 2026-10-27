@@ -185,6 +185,32 @@ test("direct sessions cannot access unrelated site or application paths", async 
   }
 });
 
+test("password recovery and change routes do not exist for clients or authenticated editors", async (t) => {
+  const app = await listen();
+  t.after(app.close);
+  const authenticated = await login(app);
+  for (const route of [
+    "/admin/blogger/recover",
+    "/admin/blogger/reset",
+    "/admin/blogger/password",
+    "/api/admin/recover",
+    "/api/admin/reset",
+    "/api/admin/password",
+  ]) {
+    for (const method of ["GET", "POST"]) {
+      const response = await fetch(`${app.url}${route}`, {
+        method,
+        headers: {
+          cookie: cookie(authenticated),
+          ...(method === "POST" ? { "content-type": "application/json", origin: "http://127.0.0.1" } : {}),
+        },
+        ...(method === "POST" ? { body: "{}" } : {}),
+      });
+      assert.equal(response.status, 404, `${method} ${route}`);
+    }
+  }
+});
+
 test("a new direct login rotates the browser's prior session", async (t) => {
   const app = await listen();
   t.after(app.close);
