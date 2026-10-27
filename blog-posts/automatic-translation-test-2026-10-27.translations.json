@@ -1,1 +1,24 @@
-{}
+{
+  "fi": {
+    "title": "Automaattisen käännöksen testi",
+    "description": "Lyhyt testiteksti, jolla varmistetaan, että automaattinen käännös toimii oikein.",
+    "body": "<p>Tämä on testiteksti, jonka tarkoituksena on tarkistaa automaattisen käännöksen toimivuus. Se ei sisällä palvelutietoja. <img src=\"https://sportmassagefuengirola.com/blog/automatic-translation-test-2026-10-27/img/automatic-translation-test.svg\" alt=\"Abstract translation test graphic\"></p>",
+    "format": "html",
+    "contentFingerprint": "27d7d92ecb479bcd4804ac20e4dab917088bc2a7b9601ad6b37826998a725ea0",
+    "sourceFingerprint": "0f5f9a582dec82b80c0fe61886d5787ffe819b917a00c8efe390ad6ded5a9407",
+    "reviewedSourceFingerprint": "",
+    "reviewedContentFingerprint": "",
+    "reviewed": false
+  },
+  "es": {
+    "title": "Prueba de traducción automática",
+    "description": "Un breve artículo de prueba para comprobar que la traducción automática funciona correctamente.",
+    "body": "<p>Este es un artículo de prueba para comprobar la traducción automática. No contiene información sobre el servicio. <img src=\"https://sportmassagefuengirola.com/blog/automatic-translation-test-2026-10-27/img/automatic-translation-test.svg\" alt=\"Abstract translation test graphic\"></p>",
+    "format": "html",
+    "contentFingerprint": "e949296afd524f6c14de279eb7a614b7b5cac36dd5fc73a2e1c552ff1bd94ac1",
+    "sourceFingerprint": "0f5f9a582dec82b80c0fe61886d5787ffe819b917a00c8efe390ad6ded5a9407",
+    "reviewedSourceFingerprint": "",
+    "reviewedContentFingerprint": "",
+    "reviewed": false
+  }
+}
