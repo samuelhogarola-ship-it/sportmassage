@@ -58,9 +58,13 @@ async function fixtureServer() {
   const { port } = server.address();
   return {
     server,
-    fetchPath: (pathname, observed, { missingAsset = false } = {}) => async (url, init) => {
+    fetchPath: (pathname, observed, { missingAsset = false, invalidAsset = null } = {}) => async (url, init) => {
       observed.push(init);
       const requestedPath = new URL(url).pathname;
+      if (assetPaths.has(requestedPath) && invalidAsset) {
+        if (invalidAsset === "content-type") return new Response("<html>fallback</html>", { status: 200, headers: { "content-type": "text/html" } });
+        if (invalidAsset === "private-host") return new Response('const endpoint = "https://admin.webfuengirola.com/api"', { status: 200, headers: { "content-type": requestedPath.endsWith(".css") ? "text/css" : "text/javascript" } });
+      }
       const fixturePath = requestedPath === "/admin/blogger/"
         ? pathname
         : missingAsset && requestedPath === "/admin/blogger/app.js"
@@ -100,4 +104,15 @@ test("deployment verifier accepts only a same-origin direct login shell and neve
     ),
     /independent Blogger verification failed/i,
   );
+
+  for (const invalidAsset of ["content-type", "private-host"]) {
+    await assert.rejects(
+      () => verifier.verifyIndependentBlogger(
+        "https://sportmassagefuengirola.com",
+        app.fetchPath("/ok", [], { invalidAsset }),
+      ),
+      /independent Blogger verification failed/i,
+      invalidAsset,
+    );
+  }
 });

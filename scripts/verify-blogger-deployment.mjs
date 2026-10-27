@@ -9,6 +9,7 @@ const REQUIRED_EDITOR_ASSETS = [
   "blogger-auth-core.js",
   "editor-schema.js",
 ];
+const PRIVATE_PANEL_HOST = /\b(?:admin|portal)\.webfuengirola\.com\b/i;
 
 function exactHttpsTarget(value) {
   let url;
@@ -51,7 +52,7 @@ export async function verifyIndependentBlogger(baseUrl, fetchImpl = fetch) {
     !hasLoginForm(html) ||
     /<meta\b[^>]*http-equiv=["']refresh["']/i.test(html) ||
     /<iframe\b/i.test(html) ||
-    /\b(?:admin|portal)\.webfuengirola\.com\b/i.test(html)
+    PRIVATE_PANEL_HOST.test(html)
   ) throw new Error(`${FAILURE}: direct login shell is missing or unsafe`);
   for (const asset of REQUIRED_EDITOR_ASSETS) {
     const assetResponse = await fetchImpl(new URL(asset, target), {
@@ -60,6 +61,14 @@ export async function verifyIndependentBlogger(baseUrl, fetchImpl = fetch) {
     });
     if (assetResponse.status !== 200 || assetResponse.headers.get("location")) {
       throw new Error(`${FAILURE}: required editor asset is unavailable`);
+    }
+    const contentType = assetResponse.headers.get("content-type")?.split(";", 1)[0].trim().toLowerCase();
+    const expectedType = asset.endsWith(".css")
+      ? contentType === "text/css"
+      : ["application/javascript", "text/javascript"].includes(contentType ?? "");
+    const body = await assetResponse.text();
+    if (!expectedType || PRIVATE_PANEL_HOST.test(body)) {
+      throw new Error(`${FAILURE}: required editor asset is invalid or unsafe`);
     }
   }
   return { ok: true };
