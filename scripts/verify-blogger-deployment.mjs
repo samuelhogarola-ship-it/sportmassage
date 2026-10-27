@@ -14,10 +14,16 @@ function exactHttpsTarget(value) {
 
 export async function verifyIndependentBlogger(baseUrl, fetchImpl = fetch) {
   const response = await fetchImpl(exactHttpsTarget(baseUrl), { method: "GET", redirect: "manual", headers: { accept: "text/html" } });
-  if (response.status !== 200 || response.headers.get("location")) throw new Error(`${FAILURE}: unexpected response`);
+  if (response.status !== 200 || response.headers.get("location") || !response.headers.get("content-type")?.toLowerCase().startsWith("text/html")) {
+    throw new Error(`${FAILURE}: unexpected response`);
+  }
   const html = await response.text();
-  const occurrences = html.split(DESTINATION).length - 1;
-  if (occurrences < 2 || !/location\.replace\(/.test(html) || /<form|type=["']password["']|<iframe|admin\.webfuengirola\.com/i.test(html)) {
+  const escaped = DESTINATION.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const exactReplace = new RegExp(`location\\.replace\\(\\s*["']${escaped}["']\\s*\\)`);
+  const exactRefresh = new RegExp(`<meta\\s+[^>]*http-equiv=["']refresh["'][^>]*content=["']0;\\s*url=${escaped}["'][^>]*>`, "i");
+  const exactLink = new RegExp(`<a\\s+[^>]*href=["']${escaped}["'][^>]*>`, "i");
+  if (!exactReplace.test(html) || !exactRefresh.test(html) || !exactLink.test(html) ||
+      /<form|type=["']password["']|<iframe|admin\.webfuengirola\.com|\/api\/(?:admin|blogger|posts|build)|blogger-auth|post-manager/i.test(html)) {
     throw new Error(`${FAILURE}: exact neutral-host gateway is missing or unsafe`);
   }
   return { ok: true };

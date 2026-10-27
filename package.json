@@ -7,8 +7,7 @@
     "test": "node --test tests/*.test.mjs",
     "check": "node scripts/check-source.mjs",
     "build:site": "node scripts/bootstrap-static-release.mjs",
-    "build:blog": "node scripts/generate-blog.mjs",
-    "start:blogger": "node scripts/post-manager-server.mjs"
+    "build:blog": "node scripts/generate-blog.mjs"
   },
   "engines": {
     "node": ">=22"

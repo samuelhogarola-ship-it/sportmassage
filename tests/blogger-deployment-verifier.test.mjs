@@ -20,7 +20,9 @@ test("deployment verifier accepts only the exact neutral-host central gateway", 
     '<form><input type="password"></form>',
     gateway.replaceAll(destination, "https://admin.webfuengirola.com/acceso/blogger/sportmassagefuengirola"),
     gateway.replace("location.replace", "void"),
+    gateway.replace(`location.replace('${destination}')`, `/* ${destination} */ location.replace('https://evil.example')`),
   ]) {
-    await assert.rejects(() => verifyIndependentBlogger("https://sportmassagefuengirola.com", async () => new Response(invalid)), /central Blogger gateway verification failed/i);
+    await assert.rejects(() => verifyIndependentBlogger("https://sportmassagefuengirola.com", async () => new Response(invalid, { headers: { "content-type": "text/html" } })), /central Blogger gateway verification failed/i);
   }
+  await assert.rejects(() => verifyIndependentBlogger("https://sportmassagefuengirola.com", async () => new Response(gateway, { headers: { "content-type": "text/plain" } })), /central Blogger gateway verification failed/i);
 });

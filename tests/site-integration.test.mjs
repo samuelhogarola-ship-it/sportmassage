@@ -34,18 +34,14 @@ test("CI verifies tests, source policy and the complete static release build", (
   assert.match(workflow, /npm run build:site/);
 });
 
-test("the service sandbox grants writes to every default transactional publication path", () => {
-  const unit = fs.readFileSync(path.join(root, "deploy/sportmassage-blogger.service.example"), "utf8");
-  const projectRoot = "/srv/sportmassage/current";
-  const writableLine = unit.split("\n").find((line) => line.startsWith("ReadWritePaths="));
-  const writable = writableLine.slice("ReadWritePaths=".length).trim().split(/\s+/).map((entry) => path.resolve(entry));
-  const canWrite = (candidate) => writable.some((entry) => candidate === entry || candidate.startsWith(`${entry}${path.sep}`));
-  for (const candidate of [
-    path.join(projectRoot, "content/blog"),
-    path.join(projectRoot, ".blogger-state/transaction"),
-    path.join(projectRoot, ".blogger-state/public/releases"),
-    path.join(projectRoot, ".blogger-state/public/current"),
-  ]) assert.equal(canWrite(candidate), true, candidate);
+test("the website repository contains no deployable Blogger authentication sidecar", () => {
+  for (const relative of [
+    "scripts/post-manager-server.mjs",
+    "scripts/blogger-launch-session.mjs",
+    "deploy/sportmassage-blogger.service.example",
+    "deploy/nginx-blogger.conf.example",
+  ]) assert.equal(fs.existsSync(path.join(root, relative)), false, relative);
+  assert.doesNotMatch(fs.readFileSync(path.join(root, "package.json"), "utf8"), /start:blogger|post-manager-server/);
 });
 
 test("committed public HTML is tracker-free and legal copy allows cookie-free Umami activation", () => {

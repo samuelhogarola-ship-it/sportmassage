@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { spawn, spawnSync } from "node:child_process";
+import { spawn } from "node:child_process";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -130,23 +130,9 @@ test("isolated build receives only an allowlisted environment", async () => {
   assert.equal(childEnv.PATH, process.env.PATH);
 });
 
-test("deployment declares shared read access and hardened admin response headers", () => {
-  const service = fs.readFileSync(path.join(repo, "deploy/sportmassage-blogger.service.example"), "utf8");
-  const nginx = fs.readFileSync(path.join(repo, "deploy/nginx-blogger.conf.example"), "utf8");
+test("deployment documentation forbids a website-local Blogger authentication service", () => {
   const deploymentGuide = fs.readFileSync(path.join(repo, "docs/blogger-deployment.md"), "utf8");
-  assert.match(service, /^Group=www-data$/m); assert.match(service, /^UMask=0027$/m);
-  for (const expected of ["Content-Security-Policy", "frame-ancestors 'none'", "X-Frame-Options \"DENY\"", "X-Content-Type-Options \"nosniff\"", "Referrer-Policy \"no-referrer\"", "Cache-Control \"no-store\""]) assert.match(nginx, new RegExp(expected));
-  assert.match(nginx, /style-src 'self'; style-src-attr 'unsafe-inline'/);
-  assert.match(nginx, /location \/admin\/blogger\/ \{[^}]*root \/srv\/sportmassage\/current\/\.blogger-state\/public\/current;/);
-  assert.match(deploymentGuide, /serve .*`\/admin\/blogger\/` from the generated `.blogger-state\/public\/current` release/i);
-  assert.match(deploymentGuide, /independent same-origin login shell/i);
-  assert.match(service, /^Environment=BLOGGER_STUDIO_HANDOFF_ENABLED=false$/m);
-  assert.doesNotMatch(deploymentGuide, /serve `\/admin\/blogger\/` from the checkout|one-time code in the fragment|canonical Studio Blogger/i);
-  const binary = ["/opt/homebrew/bin/nginx", "/usr/sbin/nginx", "/usr/local/sbin/nginx"].find(fs.existsSync);
-  if (binary) {
-    const prefix = temp("sportmassage-nginx-"); const configuration = path.join(prefix, "nginx.conf");
-    fs.writeFileSync(configuration, `pid ${prefix}/nginx.pid; error_log ${prefix}/error.log; events {} http { access_log off; server { listen 127.0.0.1:18081; ${nginx} } }`);
-    const checked = spawnSync(binary, ["-t", "-e", "stderr", "-p", prefix, "-c", configuration], { encoding:"utf8" });
-    assert.equal(checked.status, 0, `${checked.stdout}\n${checked.stderr}`);
-  }
+  assert.match(deploymentGuide, /must not run a Blogger login service/i);
+  assert.match(deploymentGuide, /portal\.webfuengirola\.com\/acceso\/blogger\/sportmassagefuengirola/);
+  assert.doesNotMatch(deploymentGuide, /same-origin login shell|BLOGGER_DIRECT_PASSWORD_HASH|BLOGGER_SESSION_SECRET/);
 });
