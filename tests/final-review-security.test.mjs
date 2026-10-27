@@ -150,3 +150,8 @@ test("deployment declares shared read access and hardened admin response headers
     assert.equal(checked.status, 0, `${checked.stdout}\n${checked.stderr}`);
   }
 });
+
+test("independent Blogger keeps the owner-managed Sport Massage account", () => {
+  const example = fs.readFileSync(path.join(repo, ".env.example"), "utf8");
+  assert.match(example, /^BLOGGER_DIRECT_USERNAME=sportmassagefuengirola@gmail\.com$/m);
+});
