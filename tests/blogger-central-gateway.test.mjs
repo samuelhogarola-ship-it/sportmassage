@@ -4,9 +4,9 @@ import path from 'node:path'
 import test from 'node:test'
 
 const html = fs.readFileSync(path.resolve('admin/blogger/index.html'), 'utf8')
-const target = 'https://portal.webfuengirola.com/acceso/blogger/sportmassagefuengirola'
+const target = 'https://blogger.sportmassagefuengirola.com/'
 
-test('Sport Massage Blogger entry is an English gateway to the existing neutral-host tool', () => {
+test('Sport Massage Blogger entry is an English gateway to its branded central tool', () => {
   assert.match(html, /<html lang="en">/)
   assert.match(html, new RegExp(target.replaceAll('.', '\\.')))
   assert.match(html, /location\.replace/)
@@ -14,5 +14,5 @@ test('Sport Massage Blogger entry is an English gateway to the existing neutral-
 })
 
 test('gateway contains no second login, editor, API, or owner-admin URL', () => {
-  assert.doesNotMatch(html, /<form|type="password"|bloggerLogin|app\.js|blogger-auth|\/api\/|admin\.webfuengirola\.com/i)
+  assert.doesNotMatch(html, /<form|type="password"|bloggerLogin|app\.js|blogger-auth|\/api\/|admin\.webfuengirola\.com|portal\.webfuengirola\.com/i)
 })

@@ -8,10 +8,10 @@ import { generateSiteRelease } from "../scripts/generate-site-release.mjs";
 const root = path.resolve(import.meta.dirname, "..");
 
 function assertCentralGateway(html, label) {
-  assert.match(html, /https:\/\/portal\.webfuengirola\.com\/acceso\/blogger\/sportmassagefuengirola/i, label);
+  assert.match(html, /https:\/\/blogger\.sportmassagefuengirola\.com\//i, label);
   assert.match(html, /location\.replace/i, label);
   assert.doesNotMatch(html, /<form|type="password"/i, label);
-  assert.doesNotMatch(html, /admin\.webfuengirola\.com/i, label);
+  assert.doesNotMatch(html, /(?:admin|portal)\.webfuengirola\.com/i, label);
   assert.doesNotMatch(html, /<iframe\b/i, label);
   assert.doesNotMatch(html, /(?:reset|change|recover|recuperar|restablecer)[^<]*(?:password|contrase(?:ñ|n)a)/i, label);
 }
