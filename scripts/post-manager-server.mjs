@@ -22,7 +22,6 @@ const MAX_HANDOFF_BODY = 4 * 1024;
 const MAX_POST_BODY = 512 * 1024;
 const MAX_MEDIA_BYTES = 10 * 1024 * 1024;
 const MAX_MEDIA_BODY = Math.ceil((MAX_MEDIA_BYTES * 4) / 3) + 8 * 1024;
-const REMEMBERED_SESSION_TTL_MS = 30 * 24 * 60 * 60 * 1_000;
 
 class RequestError extends Error {
   constructor(status, code) {
@@ -119,6 +118,12 @@ export function loadRuntimeConfig(env, projectRoot = process.cwd()) {
     mediaRoot: configuredPath(root, env.BLOGGER_MEDIA_ROOT, "content/blog/media", "Media root"),
     outputRoot: configuredPath(root, env.BLOGGER_OUTPUT_ROOT, path.join(stateDirectory, "public"), "Output root"),
     sessionTtlMs: positiveInteger(env.BLOGGER_SESSION_TTL_SECONDS, 8 * 60 * 60, 24 * 60 * 60, "Session TTL") * 1_000,
+    rememberedSessionTtlMs: positiveInteger(
+      env.BLOGGER_REMEMBERED_SESSION_TTL_SECONDS,
+      30 * 24 * 60 * 60,
+      90 * 24 * 60 * 60,
+      "Remembered session TTL",
+    ) * 1_000,
     loginAttempts: positiveInteger(env.BLOGGER_LOGIN_MAX_ATTEMPTS, 5, 20, "Login attempts"),
     buildTimeoutMs: positiveInteger(env.BLOGGER_BUILD_TIMEOUT_MS, 120_000, 15 * 60 * 1_000, "Build timeout"),
   };
@@ -245,7 +250,7 @@ export function createPostManagerServer({
   const sessions = createSessionStore({
     maxEntries: maxSessions,
     ttlMs: config.sessionTtlMs,
-    rememberedTtlMs: REMEMBERED_SESSION_TTL_MS,
+    rememberedTtlMs: config.rememberedSessionTtlMs,
     persistentFile: path.join(config.stateDirectory, "sessions.json"),
     secret: config.sessionSecret,
   });
@@ -292,7 +297,7 @@ export function createPostManagerServer({
     const prior = parseCookies(request)[COOKIE_NAME];
     if (prior) sessions.destroy(prior);
     const token = sessions.create(data, { remembered });
-    const ttlMs = remembered ? REMEMBERED_SESSION_TTL_MS : config.sessionTtlMs;
+    const ttlMs = remembered ? config.rememberedSessionTtlMs : config.sessionTtlMs;
     json(response, 200, { authenticated: true }, { "Set-Cookie": sessionCookie(token, Math.floor(ttlMs / 1_000)) });
   }
 

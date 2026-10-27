@@ -79,11 +79,17 @@ test("direct-only runtime starts without Studio credentials and exposes the fixe
   assert.equal(config.studioHandoffEnabled, false);
   assert.equal(config.siteKey, "sportmassagefuengirola");
   assert.deepEqual(config.scope, ["blogger"]);
+  assert.equal(config.sessionTtlMs, 8 * 60 * 60 * 1_000);
+  assert.equal(config.rememberedSessionTtlMs, 30 * 24 * 60 * 60 * 1_000);
   assert.equal("handoffSecret" in config, false);
   assert.equal("exchangeUrl" in config, false);
   assert.throws(
     () => serverModule.loadRuntimeConfig({ ...directEnv, BLOGGER_STUDIO_HANDOFF_ENABLED: "true" }, root),
     /handoff is disabled/i,
+  );
+  assert.equal(
+    serverModule.loadRuntimeConfig({ ...directEnv, BLOGGER_REMEMBERED_SESSION_TTL_SECONDS: "604800" }, root).rememberedSessionTtlMs,
+    7 * 24 * 60 * 60 * 1_000,
   );
 });
 

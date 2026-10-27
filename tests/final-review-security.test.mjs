@@ -136,6 +136,7 @@ test("deployment declares shared read access and hardened admin response headers
   const deploymentGuide = fs.readFileSync(path.join(repo, "docs/blogger-deployment.md"), "utf8");
   assert.match(service, /^Group=www-data$/m); assert.match(service, /^UMask=0027$/m);
   for (const expected of ["Content-Security-Policy", "frame-ancestors 'none'", "X-Frame-Options \"DENY\"", "X-Content-Type-Options \"nosniff\"", "Referrer-Policy \"no-referrer\"", "Cache-Control \"no-store\""]) assert.match(nginx, new RegExp(expected));
+  assert.match(nginx, /style-src 'self'; style-src-attr 'unsafe-inline'/);
   assert.match(nginx, /location \/admin\/blogger\/ \{[^}]*root \/srv\/sportmassage\/current\/\.blogger-state\/public\/current;/);
   assert.match(deploymentGuide, /serve .*`\/admin\/blogger\/` from the generated `.blogger-state\/public\/current` release/i);
   assert.match(deploymentGuide, /independent same-origin login shell/i);

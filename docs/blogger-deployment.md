@@ -17,10 +17,11 @@ Do not announce the independent Blogger access until all of these checks pass ov
    ```
 
    Store the printed hash as `BLOGGER_DIRECT_PASSWORD_HASH` in the protected environment file.
+   The normal session lasts `BLOGGER_SESSION_TTL_SECONDS` (eight hours by default). “Recordarme” is opt-in and uses `BLOGGER_REMEMBERED_SESSION_TTL_SECONDS` (30 days by default, capped at 90 days). Rotate `BLOGGER_SESSION_SECRET` whenever every remembered session must be invalidated.
 3. Serve the public site and `/admin/blogger/` from the generated `.blogger-state/public/current` release, and route `/api/` plus `/admin/blogger/login` to the sidecar without exposing its loopback port directly. The generated admin entry is the independent same-origin login shell; it must not redirect to Web Fuengirola Studio.
 4. Confirm `GET /.well-known/wf-blogger.json` returns discovery capabilities and `GET /api/blogger/health` returns `200` with redacted boolean checks. Health intentionally returns `503` when there is no active release, content/state permissions are unusable, or transaction recovery remains unresolved. Neither response contains credentials, paths, launch codes, or analytics identifiers.
 5. Verify direct login creates only the fixed `sportmassagefuengirola` / `blogger` session, `/admin/blogger/launch` returns 404, and logout invalidates the session.
-6. Publish and unpublish a fixture post, then force a build failure and confirm source/public rollback before using real content.
+6. In a separate staging checkout with disposable fixture content, publish and unpublish a fixture post, then force a build failure and confirm source/public rollback. Never run this recovery drill against the production article dataset; the production activation smoke test is read-only.
 
 If any check fails, keep the direct endpoint private. Do not weaken origin checks or put secrets in static files.
 

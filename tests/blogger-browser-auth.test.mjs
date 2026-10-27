@@ -10,6 +10,8 @@ test("Blogger exposes no self-service password recovery or change UI", () => {
   const html = fs.readFileSync(path.join(root, "admin/blogger/index.html"), "utf8");
   assert.doesNotMatch(html, /(?:recover|recovery|reset|change|recuperar|restablecer|cambiar)[^<]*(?:password|contrase(?:ñ|n)a)/i);
   assert.doesNotMatch(html, /href=["'][^"']*(?:recover|reset|password)/i);
+  assert.doesNotMatch(html, /name=["']remember["'][^>]*\bchecked\b/i);
+  assert.match(html, /id=["']bloggerLogout["'][^>]*>[\s\S]*?Cerrar sesi[oó]n/i);
 });
 
 test("Studio handoff fragments are ignored in direct-only mode without issuing a request", async () => {

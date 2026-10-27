@@ -2,6 +2,13 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 const FAILURE = "Independent Blogger verification failed";
+const REQUIRED_EDITOR_ASSETS = [
+  "styles.css",
+  "app.js",
+  "blogger-auth.js",
+  "blogger-auth-core.js",
+  "editor-schema.js",
+];
 
 function exactHttpsTarget(value) {
   let url;
@@ -44,8 +51,17 @@ export async function verifyIndependentBlogger(baseUrl, fetchImpl = fetch) {
     !hasLoginForm(html) ||
     /<meta\b[^>]*http-equiv=["']refresh["']/i.test(html) ||
     /<iframe\b/i.test(html) ||
-    /https:\/\/(?:admin|portal)\.webfuengirola\.com/i.test(html)
+    /\b(?:admin|portal)\.webfuengirola\.com\b/i.test(html)
   ) throw new Error(`${FAILURE}: direct login shell is missing or unsafe`);
+  for (const asset of REQUIRED_EDITOR_ASSETS) {
+    const assetResponse = await fetchImpl(new URL(asset, target), {
+      method: "GET",
+      redirect: "manual",
+    });
+    if (assetResponse.status !== 200 || assetResponse.headers.get("location")) {
+      throw new Error(`${FAILURE}: required editor asset is unavailable`);
+    }
+  }
   return { ok: true };
 }
 
