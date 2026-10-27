@@ -12,6 +12,38 @@ test("Blogger exposes no self-service password recovery or change UI", () => {
   assert.doesNotMatch(html, /href=["'][^"']*(?:recover|reset|password)/i);
   assert.doesNotMatch(html, /name=["']remember["'][^>]*\bchecked\b/i);
   assert.match(html, /id=["']bloggerLogout["'][^>]*>[\s\S]*?Cerrar sesi[oó]n/i);
+  assert.match(html, /id=["']bloggerPasswordVisibility["'][^>]*aria-controls=["']bloggerPassword["']/i);
+  assert.match(html, />Mostrar</i);
+});
+
+test("password visibility control updates the input and its accessible state", () => {
+  assert.equal(typeof browserAuth.setPasswordVisibility, "function");
+  const input = { type: "password" };
+  const control = {
+    textContent: "",
+    attributes: new Map(),
+    setAttribute(name, value) { this.attributes.set(name, value); },
+  };
+
+  browserAuth.setPasswordVisibility(input, control, true);
+  assert.equal(input.type, "text");
+  assert.equal(control.textContent, "Ocultar");
+  assert.equal(control.attributes.get("aria-pressed"), "true");
+
+  browserAuth.setPasswordVisibility(input, control, false);
+  assert.equal(input.type, "password");
+  assert.equal(control.textContent, "Mostrar");
+  assert.equal(control.attributes.get("aria-pressed"), "false");
+});
+
+test("authentication failures preserve the HTTP status so the UI can distinguish outages", async () => {
+  await assert.rejects(
+    () => browserAuth.fetchBloggerJson(async () => new Response("Hostinger 404", {
+      status: 404,
+      headers: { "content-type": "text/html" },
+    }), "/admin/blogger/login", { method: "POST", body: {} }),
+    error => error?.status === 404 && error?.code === "authentication_failed",
+  );
 });
 
 test("Studio handoff fragments are ignored in direct-only mode without issuing a request", async () => {
