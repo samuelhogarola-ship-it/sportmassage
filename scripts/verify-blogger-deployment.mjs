@@ -3,6 +3,14 @@ import { fileURLToPath } from "node:url";
 
 const FAILURE = "Central Blogger gateway verification failed";
 const DESTINATION = "https://portal.webfuengirola.com/acceso/blogger/sportmassagefuengirola";
+const RETIRED_PATHS = [
+  "/admin/blogger/app.js",
+  "/admin/blogger/blogger-auth.js",
+  "/api/posts",
+  "/api/build",
+  "/api/admin/session",
+  "/api/blogger/health",
+];
 
 function exactHttpsTarget(value) {
   const url = new URL(value);
@@ -22,9 +30,17 @@ export async function verifyIndependentBlogger(baseUrl, fetchImpl = fetch) {
   const exactReplace = new RegExp(`location\\.replace\\(\\s*["']${escaped}["']\\s*\\)`);
   const exactRefresh = new RegExp(`<meta\\s+[^>]*http-equiv=["']refresh["'][^>]*content=["']0;\\s*url=${escaped}["'][^>]*>`, "i");
   const exactLink = new RegExp(`<a\\s+[^>]*href=["']${escaped}["'][^>]*>`, "i");
-  if (!exactReplace.test(html) || !exactRefresh.test(html) || !exactLink.test(html) ||
+  const replacements = html.match(/location\.replace\s*\(/g) ?? [];
+  if (replacements.length !== 1 || !exactReplace.test(html) || !exactRefresh.test(html) || !exactLink.test(html) ||
       /<form|type=["']password["']|<iframe|admin\.webfuengirola\.com|\/api\/(?:admin|blogger|posts|build)|blogger-auth|post-manager/i.test(html)) {
     throw new Error(`${FAILURE}: exact neutral-host gateway is missing or unsafe`);
+  }
+  const origin = new URL(exactHttpsTarget(baseUrl)).origin;
+  for (const retiredPath of RETIRED_PATHS) {
+    const retired = await fetchImpl(`${origin}${retiredPath}`, { method: "GET", redirect: "manual", headers: { accept: "text/html,*/*" } });
+    if (![404, 410].includes(retired.status) || retired.headers.get("location")) {
+      throw new Error(`${FAILURE}: obsolete Blogger runtime is still reachable`);
+    }
   }
   return { ok: true };
 }

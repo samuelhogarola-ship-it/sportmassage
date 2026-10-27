@@ -18,6 +18,8 @@ test("site configuration keeps the legacy panel key and declares the canonical S
   assert.equal(config.panel.key, "sportmassage");
   assert.equal(config.blogger.tenantKey, "sportmassagefuengirola");
   assert.deepEqual(config.blogger.tenantAliases, ["sportmassage"]);
+  assert.equal(config.blogger.apiBase, undefined);
+  assert.equal(config.blogger.buildEndpoint, undefined);
 });
 
 test("the public release manifest follows the current origin/main design assets", () => {
