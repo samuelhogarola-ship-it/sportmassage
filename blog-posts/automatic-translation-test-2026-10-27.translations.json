@@ -6,9 +6,9 @@
     "format": "html",
     "contentFingerprint": "1119d52aad5411512dc66c90cca5600f7eab7b079bd92c367c65faa955b5f9be",
     "sourceFingerprint": "0f5f9a582dec82b80c0fe61886d5787ffe819b917a00c8efe390ad6ded5a9407",
-    "reviewedSourceFingerprint": "",
-    "reviewedContentFingerprint": "",
-    "reviewed": false
+    "reviewedSourceFingerprint": "0f5f9a582dec82b80c0fe61886d5787ffe819b917a00c8efe390ad6ded5a9407",
+    "reviewedContentFingerprint": "1119d52aad5411512dc66c90cca5600f7eab7b079bd92c367c65faa955b5f9be",
+    "reviewed": true
   },
   "es": {
     "title": "Prueba de traducción automática",
