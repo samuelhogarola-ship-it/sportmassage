@@ -1,7 +1,5 @@
 import assert from "node:assert/strict";
-import { once } from "node:events";
 import fs from "node:fs";
-import { request as httpRequest } from "node:http";
 import os from "node:os";
 import path from "node:path";
 import test from "node:test";
@@ -36,12 +34,9 @@ async function listen(overrides = {}) {
   const env = {
     NODE_ENV: "test",
     BLOGGER_PUBLIC_ORIGIN: "https://sportmassagefuengirola.com",
-    BLOGGER_STUDIO_ORIGIN: "https://studio.example.com",
-    BLOGGER_STUDIO_EXCHANGE_URL: "https://studio.example.com/api/tool-launch/exchange",
     BLOGGER_DIRECT_USERNAME: "sofia-blogger",
     BLOGGER_DIRECT_PASSWORD_HASH: passwordHash,
     BLOGGER_SESSION_SECRET: "session_4Yz!Q9mP2vK7xN5cR8tL3wD6hF1sJ0aB",
-    BLOGGER_HANDOFF_SECRET: "handoff_7Nv!P3qR9mC2xW8kT5dL1yF6jH4sA0e",
     BLOGGER_TEST_ORIGIN: "http://127.0.0.1",
     BLOGGER_LOGIN_MAX_ATTEMPTS: "2",
     ...overrides.env,
@@ -49,14 +44,9 @@ async function listen(overrides = {}) {
   const server = serverModule.createPostManagerServer({
     projectRoot: root,
     env,
-    fetchImpl: overrides.fetchImpl,
     build: overrides.build ?? (async () => {}),
     maxSessions: overrides.maxSessions ?? 3,
     maxRateLimitEntries: overrides.maxRateLimitEntries ?? 3,
-    handoffPerIpLimit: overrides.handoffPerIpLimit,
-    handoffGlobalLimit: overrides.handoffGlobalLimit,
-    maxConcurrentHandoffs: overrides.maxConcurrentHandoffs,
-    maxHandoffResponseBytes: overrides.maxHandoffResponseBytes,
     accessSync: overrides.accessSync,
   });
   await new Promise((resolve, reject) => {
@@ -71,6 +61,31 @@ async function listen(overrides = {}) {
     close: () => new Promise((resolve) => server.close(resolve)),
   };
 }
+
+test("direct-only runtime starts without Studio credentials and exposes the fixed Blogger identity", async () => {
+  assert.equal(typeof serverModule.loadRuntimeConfig, "function");
+  const passwordHash = await auth.generatePasswordHash(password);
+  const directEnv = {
+    NODE_ENV: "test",
+    BLOGGER_PUBLIC_ORIGIN: "https://sportmassagefuengirola.com",
+    BLOGGER_DIRECT_USERNAME: "sofia-blogger",
+    BLOGGER_DIRECT_PASSWORD_HASH: passwordHash,
+    BLOGGER_SESSION_SECRET: "session_4Yz!Q9mP2vK7xN5cR8tL3wD6hF1sJ0aB",
+    BLOGGER_TEST_ORIGIN: "http://127.0.0.1",
+  };
+  const root = fixture();
+  const config = serverModule.loadRuntimeConfig(directEnv, root);
+
+  assert.equal(config.studioHandoffEnabled, false);
+  assert.equal(config.siteKey, "sportmassagefuengirola");
+  assert.deepEqual(config.scope, ["blogger"]);
+  assert.equal("handoffSecret" in config, false);
+  assert.equal("exchangeUrl" in config, false);
+  assert.throws(
+    () => serverModule.loadRuntimeConfig({ ...directEnv, BLOGGER_STUDIO_HANDOFF_ENABLED: "true" }, root),
+    /handoff is disabled/i,
+  );
+});
 
 function cookie(response) {
   return response.headers.get("set-cookie")?.split(";", 1)[0] ?? "";
@@ -122,12 +137,52 @@ test("direct credentials grant Blogger scope only and audit direct origin", asyn
   assert.deepEqual(await session.json(), {
     authenticated: true,
     source: "direct",
+    siteKey: "sportmassagefuengirola",
     scope: ["blogger"],
-    subject: { role: "blogger_editor", username: "sofia-blogger" },
   });
   const audit = fs.readFileSync(path.join(app.root, ".blogger-state/audit.ndjson"), "utf8");
   assert.match(audit, /"origin":"direct"/);
   assert.doesNotMatch(audit, new RegExp(password));
+});
+
+test("direct-only mode disables Studio launch and does not contact an exchange server", async (t) => {
+  let exchanges = 0;
+  const app = await listen({
+    env: {
+      BLOGGER_STUDIO_ORIGIN: undefined,
+      BLOGGER_STUDIO_EXCHANGE_URL: undefined,
+      BLOGGER_HANDOFF_SECRET: undefined,
+    },
+    fetchImpl: async () => {
+      exchanges += 1;
+      return Response.json({});
+    },
+  });
+  t.after(app.close);
+
+  const response = await fetch(`${app.url}/admin/blogger/launch`, {
+    method: "POST",
+    headers: { "content-type": "application/json", origin: "http://127.0.0.1" },
+    body: JSON.stringify({ code: "A".repeat(43) }),
+  });
+  assert.equal(response.status, 404);
+  assert.deepEqual(await response.json(), { error: "not_found" });
+  assert.equal(exchanges, 0);
+});
+
+test("direct sessions cannot access unrelated site or application paths", async (t) => {
+  const app = await listen();
+  t.after(app.close);
+  const authenticated = await login(app);
+  for (const route of [
+    "/api/sites/another/posts",
+    "/api/projects/project-1",
+    "/paneladmin/inicio",
+    "/cliente/dashboard",
+  ]) {
+    const response = await fetch(`${app.url}${route}`, { headers: { cookie: cookie(authenticated) } });
+    assert.equal(response.status, 404, route);
+  }
 });
 
 test("a new direct login rotates the browser's prior session", async (t) => {
@@ -142,92 +197,6 @@ test("a new direct login rotates the browser's prior session", async (t) => {
     headers: { cookie: firstCookie },
   });
   assert.equal(retired.status, 401);
-});
-
-test("Studio handoff exchanges the exact site audience and records studio origin", async (t) => {
-  let exchangeRequest;
-  const app = await listen({
-    fetchImpl: async (url, init) => {
-      exchangeRequest = { url, init, body: JSON.parse(init.body) };
-      return Response.json({
-        protocol: "wf-blogger-handoff/v1",
-        audience: "sportmassagefuengirola",
-        subject: { role: "client", userId: "user-1", projectId: "project-1" },
-      });
-    },
-  });
-  t.after(app.close);
-  const response = await fetch(`${app.url}/admin/blogger/launch`, {
-    method: "POST",
-    headers: { "content-type": "application/json", origin: "http://127.0.0.1" },
-    body: JSON.stringify({ code: "A".repeat(43) }),
-  });
-  assert.equal(response.status, 200, await response.clone().text());
-  assert.equal(exchangeRequest.url, "https://studio.example.com/api/tool-launch/exchange");
-  assert.equal(exchangeRequest.body.audience, "sportmassagefuengirola");
-  assert.equal(exchangeRequest.init.headers.Authorization, `Bearer ${"handoff_7Nv!P3qR9mC2xW8kT5dL1yF6jH4sA0e"}`);
-  const session = await fetch(`${app.url}/api/admin/session`, {
-    headers: { cookie: cookie(response) },
-  });
-  const body = await session.json();
-  assert.equal(body.source, "studio");
-  assert.deepEqual(body.scope, ["blogger"]);
-  assert.deepEqual(body.subject, { role: "client", userId: "user-1", projectId: "project-1" });
-  const audit = fs.readFileSync(path.join(app.root, ".blogger-state/audit.ndjson"), "utf8");
-  assert.match(audit, /"origin":"studio"/);
-});
-
-test("Studio handoff rejects null and non-string launch codes before exchange", async (t) => {
-  let exchanges = 0;
-  const app = await listen({
-    fetchImpl: async () => {
-      exchanges += 1;
-      return Response.json({});
-    },
-  });
-  t.after(app.close);
-  for (const payload of [null, { code: ["A".repeat(43)] }]) {
-    const response = await fetch(`${app.url}/admin/blogger/launch`, {
-      method: "POST",
-      headers: { "content-type": "application/json", origin: "http://127.0.0.1" },
-      body: JSON.stringify(payload),
-    });
-    assert.equal(response.status, 400);
-    assert.deepEqual(await response.json(), { error: "invalid_launch_code" });
-  }
-  assert.equal(exchanges, 0);
-});
-
-test("Studio handoff rejects non-object exchange responses as expired tickets", async (t) => {
-  for (const payload of [null, []]) {
-    const app = await listen({ fetchImpl: async () => Response.json(payload) });
-    t.after(app.close);
-    const response = await fetch(`${app.url}/admin/blogger/launch`, {
-      method: "POST",
-      headers: { "content-type": "application/json", origin: "http://127.0.0.1" },
-      body: JSON.stringify({ code: "A".repeat(43) }),
-    });
-    assert.equal(response.status, 401);
-    assert.deepEqual(await response.json(), { error: "invalid_or_expired_ticket" });
-  }
-});
-
-test("Studio handoff rejects a response with the wrong protocol", async (t) => {
-  const app = await listen({
-    fetchImpl: async () => Response.json({
-      protocol: "unexpected/v2",
-      audience: "sportmassagefuengirola",
-      subject: { role: "client", userId: "user-1" },
-    }),
-  });
-  t.after(app.close);
-  const response = await fetch(`${app.url}/admin/blogger/launch`, {
-    method: "POST",
-    headers: { "content-type": "application/json", origin: "http://127.0.0.1" },
-    body: JSON.stringify({ code: "A".repeat(43) }),
-  });
-  assert.equal(response.status, 401);
-  assert.deepEqual(await response.json(), { error: "invalid_or_expired_ticket" });
 });
 
 test("login rate limiting is generic and its backing store remains bounded", async (t) => {
@@ -369,89 +338,6 @@ test("concurrent anonymous health reads do not queue behind or add store writes"
   assert.equal(buildCount, 1);
   assert.equal(built.status, 200);
   assert.deepEqual(healthResponses.map((response) => response.status), [503, 503, 503, 503]);
-});
-
-test("Studio launch exchange is bounded by per-IP, global and concurrency limits with generic failures", async (t) => {
-  let release;
-  let exchanges = 0;
-  const pending = new Promise((resolve) => { release = resolve; });
-  const app = await listen({
-    handoffPerIpLimit: 2, handoffGlobalLimit: 2, maxConcurrentHandoffs: 1, maxHandoffResponseBytes: 128,
-    fetchImpl: async () => { exchanges += 1; if (exchanges === 1) await pending; return Response.json({ protocol: "wf-blogger-handoff/v1", audience: "sportmassagefuengirola", subject: { role: "client" } }); },
-  });
-  t.after(app.close);
-  const launch = (ip = "203.0.113.20") => fetch(`${app.url}/admin/blogger/launch`, { method:"POST", headers:{ "content-type":"application/json", origin:"http://127.0.0.1", "x-real-ip":ip }, body:JSON.stringify({ code:"A".repeat(43) }) });
-  const first = launch(); await new Promise((resolve) => setTimeout(resolve, 30));
-  const concurrent = await launch("203.0.113.21");
-  release(); const firstResponse = await first;
-  assert.equal(concurrent.status, 429); assert.deepEqual(await concurrent.json(), { error:"launch_unavailable" });
-  assert.equal(firstResponse.status, 200);
-
-  const oversized = await listen({ maxHandoffResponseBytes: 64, fetchImpl: async () => new Response(JSON.stringify({ padding:"x".repeat(500) }), { status:200, headers:{ "content-type":"application/json" } }) });
-  t.after(oversized.close);
-  const failed = await fetch(`${oversized.url}/admin/blogger/launch`, { method:"POST", headers:{ "content-type":"application/json", origin:"http://127.0.0.1" }, body:JSON.stringify({ code:"B".repeat(43) }) });
-  assert.equal(failed.status, 401); assert.deepEqual(await failed.json(), { error:"invalid_or_expired_ticket" });
-});
-
-test("Studio launch reserves concurrency before reading the body and releases it after parse errors", async (t) => {
-  let exchanges = 0;
-  const app = await listen({
-    handoffPerIpLimit: 10,
-    handoffGlobalLimit: 10,
-    maxConcurrentHandoffs: 1,
-    fetchImpl: async () => {
-      exchanges += 1;
-      return Response.json({
-        protocol: "wf-blogger-handoff/v1",
-        audience: "sportmassagefuengirola",
-        subject: { role: "client" },
-      });
-    },
-  });
-  t.after(app.close);
-  const requestObserved = once(app.server, "request");
-  let finishSlow;
-  const slowResponse = new Promise((resolve, reject) => {
-    const request = httpRequest(`${app.url}/admin/blogger/launch`, {
-      method: "POST",
-      headers: { "content-type": "application/json", origin: "http://127.0.0.1" },
-    }, (response) => {
-      response.resume();
-      response.once("end", () => resolve(response.statusCode));
-    });
-    request.once("error", reject);
-    request.write('{"code":');
-    finishSlow = () => request.end("not-json}");
-  });
-  await requestObserved;
-  const concurrent = await fetch(`${app.url}/admin/blogger/launch`, {
-    method: "POST",
-    headers: { "content-type": "application/json", origin: "http://127.0.0.1" },
-    body: JSON.stringify({ code: "A".repeat(43) }),
-  });
-  finishSlow();
-  const slowStatus = await slowResponse;
-  assert.equal(concurrent.status, 429);
-  assert.equal(slowStatus, 400);
-  const afterParseError = await fetch(`${app.url}/admin/blogger/launch`, {
-    method: "POST",
-    headers: { "content-type": "application/json", origin: "http://127.0.0.1" },
-    body: JSON.stringify({ code: "B".repeat(43) }),
-  });
-  assert.equal(afterParseError.status, 200);
-  assert.equal(exchanges, 1);
-});
-
-test("Studio launch rate limits are independently enforced per IP and globally", async (t) => {
-  const ticket = () => Response.json({ protocol:"wf-blogger-handoff/v1", audience:"sportmassagefuengirola", subject:{ role:"client" } });
-  const perIp = await listen({ handoffPerIpLimit:1, handoffGlobalLimit:10, fetchImpl:async()=>ticket() }); t.after(perIp.close);
-  const launch = (app, ip, code) => fetch(`${app.url}/admin/blogger/launch`, { method:"POST", headers:{ "content-type":"application/json", origin:"http://127.0.0.1", "x-real-ip":ip }, body:JSON.stringify({ code:code.repeat(43) }) });
-  assert.equal((await launch(perIp, "203.0.113.30", "A")).status, 200);
-  assert.equal((await launch(perIp, "203.0.113.30", "B")).status, 429);
-  assert.equal((await launch(perIp, "203.0.113.31", "C")).status, 200);
-  const global = await listen({ handoffPerIpLimit:10, handoffGlobalLimit:1, fetchImpl:async()=>ticket() }); t.after(global.close);
-  assert.equal((await launch(global, "203.0.113.40", "D")).status, 200);
-  const blocked = await launch(global, "203.0.113.41", "E"); assert.equal(blocked.status, 429); assert.deepEqual(await blocked.json(), { error:"launch_unavailable" });
 });
 
 test("relative state, content, media and output paths resolve inside the project root", async (t) => {

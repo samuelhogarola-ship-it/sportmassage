@@ -5,12 +5,13 @@ import test from "node:test";
 
 const root = path.resolve(import.meta.dirname, "..");
 
-test("direct Git deployments preserve the central Blogger login destination", () => {
+test("direct Git deployments preserve the independent Blogger login shell", () => {
   const html = fs.readFileSync(path.join(root, "admin/blogger/index.html"), "utf8");
-  const target = "https://admin.webfuengirola.com/acceso/blogger/sportmassagefuengirola";
-  assert.equal(html.match(/http-equiv="refresh" content="0;url=([^"]+)"/)?.[1], target);
-  assert.equal(html.match(/<a href="([^"]+)"/)?.[1], target);
-  assert.doesNotMatch(html, /cliente\/proyectos|<script|bloggerLoginForm/);
+  assert.match(html, /id="bloggerLoginForm"/);
+  assert.match(html, /action="\/admin\/blogger\/login"/);
+  assert.match(html, /name="username"/);
+  assert.match(html, /name="password"[^>]*type="password"/);
+  assert.doesNotMatch(html, /http-equiv="refresh"|admin\.webfuengirola\.com|portal\.webfuengirola\.com|<iframe/i);
 });
 
 test("site configuration keeps the legacy panel key and declares the canonical Studio tenant", () => {

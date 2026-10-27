@@ -3,22 +3,19 @@ import test from "node:test";
 
 const browserAuth = await import("../admin/blogger/blogger-auth-core.js").catch(() => ({}));
 
-test("Studio launch codes are consumed from the URL fragment and sent only in a POST body", async () => {
+test("Studio handoff fragments are ignored in direct-only mode without issuing a request", async () => {
   assert.equal(typeof browserAuth.consumeStudioLaunchFragment, "function");
   const requests = [];
   const replacements = [];
-  const location = { href: "https://sportmassagefuengirola.com/admin/blogger/#code=A_secret_launch_code" };
+  const location = { href: `https://sportmassagefuengirola.com/admin/blogger/#protocol=wf-blogger-handoff%2Fv1&code=${"A".repeat(43)}&siteKey=sportmassagefuengirola` };
   const consumed = await browserAuth.consumeStudioLaunchFragment({
     location,
     replaceUrl: (value) => replacements.push(value),
     request: async (url, options) => { requests.push({ url, options }); },
   });
-  assert.equal(consumed, true);
-  assert.deepEqual(replacements, ["/admin/blogger/"]);
-  assert.equal(requests[0].url, "/admin/blogger/launch");
-  assert.equal(requests[0].options.method, "POST");
-  assert.deepEqual(JSON.parse(requests[0].options.body), { code: "A_secret_launch_code" });
-  assert.equal(requests[0].url.includes("A_secret_launch_code"), false);
+  assert.equal(consumed, false);
+  assert.deepEqual(replacements, []);
+  assert.deepEqual(requests, []);
 });
 
 test("query-string launch codes are ignored so they cannot be propagated through request targets", async () => {
