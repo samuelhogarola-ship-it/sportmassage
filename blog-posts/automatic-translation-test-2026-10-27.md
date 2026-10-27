@@ -10,4 +10,4 @@ status: draft
 content_format: markdown
 ---
 
-This is a test article to verify automatic translation. It contains no service information.
+This is a test article to verify automatic translation. It contains no service information.![Abstract translation test graphic](https://sportmassagefuengirola.com/blog/automatic-translation-test-2026-10-27/img/automatic-translation-test.svg)
