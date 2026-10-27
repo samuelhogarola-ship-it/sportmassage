@@ -9,8 +9,19 @@ export async function fetchBloggerJson(fetchImpl, url, options = {}) {
     body: options.body === undefined || typeof options.body === "string" ? options.body : JSON.stringify(options.body),
   });
   const body = response.status === 204 ? null : await response.json().catch(() => null);
-  if (!response.ok) throw new Error(body?.error || "authentication_failed");
+  if (!response.ok) {
+    const error = new Error(body?.error || "authentication_failed");
+    error.code = body?.error || "authentication_failed";
+    error.status = response.status;
+    throw error;
+  }
   return body;
+}
+
+export function setPasswordVisibility(input, control, visible) {
+  input.type = visible ? "text" : "password";
+  control.textContent = visible ? "Ocultar" : "Mostrar";
+  control.setAttribute("aria-pressed", String(visible));
 }
 
 export async function consumeStudioLaunchFragment() {

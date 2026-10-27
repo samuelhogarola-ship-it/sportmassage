@@ -640,6 +640,28 @@ textarea {
   gap: 6px;
 }
 
+.password-control {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+
+.password-control input {
+  border-radius: 8px 0 0 8px;
+}
+
+.password-visibility {
+  border: 1px solid var(--line);
+  border-left: 0;
+  border-radius: 0 8px 8px 0;
+  background: #e7ecf8;
+  color: var(--ink);
+  min-width: 88px;
+}
+
+.password-visibility:hover {
+  background: #dbe3f3;
+}
+
 .login-card .remember-control {
   align-items: center;
   cursor: pointer;

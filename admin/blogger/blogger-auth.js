@@ -1,11 +1,17 @@
-import { fetchBloggerJson, normalizePastedHtml } from "./blogger-auth-core.js";
+import { fetchBloggerJson, normalizePastedHtml, setPasswordVisibility } from "./blogger-auth-core.js";
 
 const loginShell = document.querySelector("#bloggerLogin");
 const appShell = document.querySelector(".app-shell");
 const loginForm = document.querySelector("#bloggerLoginForm");
 const loginStatus = document.querySelector("#bloggerLoginStatus");
 const logoutButton = document.querySelector("#bloggerLogout");
+const passwordInput = document.querySelector("#bloggerPassword");
+const passwordVisibility = document.querySelector("#bloggerPasswordVisibility");
 const visualEditor = document.querySelector("#visualEditor");
+
+passwordVisibility.addEventListener("click", () => {
+  setPasswordVisibility(passwordInput, passwordVisibility, passwordInput.type === "password");
+});
 
 async function request(url, options = {}) {
   return fetchBloggerJson(fetch, url, options);
@@ -53,8 +59,10 @@ export async function requireBloggerAccess() {
         loginForm.reset();
         showEditor();
         resolve(true);
-      } catch {
-        loginStatus.textContent = "Usuario o contraseña incorrectos.";
+      } catch (error) {
+        loginStatus.textContent = error?.status === 401
+          ? "Usuario o contraseña incorrectos."
+          : "El acceso a Blogger no está disponible ahora mismo. Inténtalo más tarde.";
       } finally {
         submit.disabled = false;
       }
