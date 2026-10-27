@@ -1,6 +1,6 @@
 {
   "files": [
-    "index.html", "legal.html", "cookie-banner-core.js", "legal-core.css", "legal-core.js", "language-analytics.js",
+    "index.html", "legal.html", "cookie-banner-core.js", "legal-core.css", "legal-core.js", "language-analytics.js", "umami-loader.js",
     "favicon-16.png", "favicon-16.webp", "favicon-192.png", "favicon-32.png", "favicon-32.webp",
     "favicon-512.webp", "favicon.ico", "logo.png", "logo.webp", "nif.png",
     "admin/blogger/index.html",

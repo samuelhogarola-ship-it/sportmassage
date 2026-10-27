@@ -11,7 +11,7 @@ Medir en Umami qué idioma de contenido está viendo realmente cada visita de Sp
 - Deduplicar selecciones repetidas del mismo idioma durante la vida de la página.
 - Cubrir home, legal, propuestas estáticas, índice del blog y artículos generados.
 - Mantener el tracker Umami existente: el helper no carga analítica y no hace nada cuando `window.umami.track` no existe.
-- Hacer que GitHub Pages prepare su copia efímera antes de subirla, inyectando el tracker cookie-free únicamente con el website ID y la URL pública verificados de Sport Massage. El árbol fuente y los artículos permanecen intactos.
+- Hacer que GitHub Pages prepare su copia efímera antes de subirla, inyectando un cargador local del tracker cookie-free únicamente con el website ID y la URL pública verificados de Sport Massage. El cargador respeta un rechazo almacenado y una aceptación posterior sin duplicarse. El árbol fuente y los artículos permanecen intactos.
 - No enviar rutas, textos, identificadores, datos personales ni contenido de artículos.
 
 ## Enfoques

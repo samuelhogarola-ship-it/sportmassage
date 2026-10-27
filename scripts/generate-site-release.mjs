@@ -12,7 +12,7 @@ function trackerMarkup(websiteId, scriptUrl, verified) {
   try {
     const parsed = new URL(scriptUrl);
     if (parsed.protocol !== "https:" || parsed.username || parsed.password) return "";
-    return `<script defer src="${parsed.href.replaceAll("&", "&amp;").replaceAll('"', "&quot;")}" data-website-id="${websiteId}"></script>`;
+    return `<script defer src="/umami-loader.js" data-website-id="${websiteId}" data-script-url="${parsed.href.replaceAll("&", "&amp;").replaceAll('"', "&quot;")}"></script>`;
   } catch { return ""; }
 }
 

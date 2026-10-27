@@ -35,7 +35,7 @@ function verifiedTracker(websiteId, scriptUrl, verified) {
   const parsed = new URL(scriptUrl)
   if (parsed.protocol !== 'https:' || parsed.username || parsed.password) throw new Error('Verified HTTPS Umami script URL is required for Pages')
   const safeUrl = parsed.href.replaceAll('&', '&amp;').replaceAll('"', '&quot;')
-  return `<script defer src="${safeUrl}" data-website-id="${websiteId}"></script>`
+  return `<script defer src="/umami-loader.js" data-website-id="${websiteId}" data-script-url="${safeUrl}"></script>`
 }
 
 export function preparePagesAnalytics({ root, websiteId, scriptUrl, verified = false }) {

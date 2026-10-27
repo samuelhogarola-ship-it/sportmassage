@@ -54,11 +54,13 @@
 
     wrapper.querySelector('.cb-accept').addEventListener('click', function () {
       localStorage.setItem(key, 'accepted');
+      window.dispatchEvent(new CustomEvent('smf:cookie-consent', { detail: 'accepted' }));
       wrapper.style.display = 'none';
     });
 
     wrapper.querySelector('.cb-reject').addEventListener('click', function () {
       localStorage.setItem(key, 'rejected');
+      window.dispatchEvent(new CustomEvent('smf:cookie-consent', { detail: 'rejected' }));
       wrapper.style.display = 'none';
     });
   }
