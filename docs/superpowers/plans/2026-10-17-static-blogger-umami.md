@@ -1,5 +1,7 @@
 # Sport Massage Static Blogger and Umami Plan
 
+> Superseded for authentication and editing. Sport Massage now uses only the static gateway to the existing central editor documented in `docs/blogger-deployment.md`; the website-local sidecar described below must not be restored or deployed.
+
 **Goal:** Replace the removed legacy CMS blog with a fully static Sport Massage blog managed through a protected Blogger editor, while preparing privacy-friendly Umami analytics.
 
 **Architecture:** A small Node service owns authenticated editing and deterministic static generation. Public pages remain plain generated HTML. Studio launches use the shared one-time handoff contract; direct credentials create the same site-local session but grant Blogger only. Umami markup is emitted only when a real website ID is configured.

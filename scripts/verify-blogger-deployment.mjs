@@ -1,74 +1,45 @@
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-const FAILURE = "Independent Blogger verification failed";
-const REQUIRED_EDITOR_ASSETS = [
-  "styles.css",
-  "app.js",
-  "blogger-auth.js",
-  "blogger-auth-core.js",
-  "editor-schema.js",
+const FAILURE = "Central Blogger gateway verification failed";
+const DESTINATION = "https://portal.webfuengirola.com/acceso/blogger/sportmassagefuengirola";
+const RETIRED_PATHS = [
+  "/admin/blogger/app.js",
+  "/admin/blogger/blogger-auth.js",
+  "/api/posts",
+  "/api/build",
+  "/api/admin/session",
+  "/api/blogger/health",
 ];
-const PRIVATE_PANEL_HOST = /\b(?:admin|portal)\.webfuengirola\.com\b/i;
 
 function exactHttpsTarget(value) {
-  let url;
-  try {
-    url = new URL(value);
-  } catch {
+  const url = new URL(value);
+  if (url.protocol !== "https:" || url.username || url.password || !["", "/", "/admin/blogger/"].includes(url.pathname) || url.search || url.hash) {
     throw new Error(`${FAILURE}: base URL must be HTTPS`);
   }
-  if (
-    url.protocol !== "https:" ||
-    url.username ||
-    url.password ||
-    !["", "/", "/admin/blogger/"].includes(url.pathname) ||
-    url.search ||
-    url.hash
-  ) throw new Error(`${FAILURE}: base URL must be HTTPS`);
   return url.pathname === "/admin/blogger/" ? url.href : `${url.origin}/admin/blogger/`;
 }
 
-function hasLoginForm(html) {
-  const form = html.match(/<form\b[^>]*id=["']bloggerLoginForm["'][^>]*>/i)?.[0] ?? "";
-  return /\bmethod=["']post["']/i.test(form)
-    && /\baction=["']\/admin\/blogger\/login["']/i.test(form)
-    && /<input\b[^>]*\bname=["']username["']/i.test(html)
-    && /<input\b[^>]*\bname=["']password["'][^>]*\btype=["']password["']/i.test(html);
-}
-
 export async function verifyIndependentBlogger(baseUrl, fetchImpl = fetch) {
-  const target = exactHttpsTarget(baseUrl);
-  const response = await fetchImpl(target, {
-    method: "GET",
-    redirect: "manual",
-    headers: { accept: "text/html" },
-  });
-  if (response.status !== 200 || response.headers.get("location")) {
+  const response = await fetchImpl(exactHttpsTarget(baseUrl), { method: "GET", redirect: "manual", headers: { accept: "text/html" } });
+  if (response.status !== 200 || response.headers.get("location") || !response.headers.get("content-type")?.toLowerCase().startsWith("text/html")) {
     throw new Error(`${FAILURE}: unexpected response`);
   }
   const html = await response.text();
-  if (
-    !hasLoginForm(html) ||
-    /<meta\b[^>]*http-equiv=["']refresh["']/i.test(html) ||
-    /<iframe\b/i.test(html) ||
-    PRIVATE_PANEL_HOST.test(html)
-  ) throw new Error(`${FAILURE}: direct login shell is missing or unsafe`);
-  for (const asset of REQUIRED_EDITOR_ASSETS) {
-    const assetResponse = await fetchImpl(new URL(asset, target), {
-      method: "GET",
-      redirect: "manual",
-    });
-    if (assetResponse.status !== 200 || assetResponse.headers.get("location")) {
-      throw new Error(`${FAILURE}: required editor asset is unavailable`);
-    }
-    const contentType = assetResponse.headers.get("content-type")?.split(";", 1)[0].trim().toLowerCase();
-    const expectedType = asset.endsWith(".css")
-      ? contentType === "text/css"
-      : ["application/javascript", "text/javascript"].includes(contentType ?? "");
-    const body = await assetResponse.text();
-    if (!expectedType || PRIVATE_PANEL_HOST.test(body)) {
-      throw new Error(`${FAILURE}: required editor asset is invalid or unsafe`);
+  const escaped = DESTINATION.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const exactReplace = new RegExp(`location\\.replace\\(\\s*["']${escaped}["']\\s*\\)`);
+  const exactRefresh = new RegExp(`<meta\\s+[^>]*http-equiv=["']refresh["'][^>]*content=["']0;\\s*url=${escaped}["'][^>]*>`, "i");
+  const exactLink = new RegExp(`<a\\s+[^>]*href=["']${escaped}["'][^>]*>`, "i");
+  const replacements = html.match(/location\.replace\s*\(/g) ?? [];
+  if (replacements.length !== 1 || !exactReplace.test(html) || !exactRefresh.test(html) || !exactLink.test(html) ||
+      /<form|type=["']password["']|<iframe|admin\.webfuengirola\.com|\/api\/(?:admin|blogger|posts|build)|blogger-auth|post-manager/i.test(html)) {
+    throw new Error(`${FAILURE}: exact neutral-host gateway is missing or unsafe`);
+  }
+  const origin = new URL(exactHttpsTarget(baseUrl)).origin;
+  for (const retiredPath of RETIRED_PATHS) {
+    const retired = await fetchImpl(`${origin}${retiredPath}`, { method: "GET", redirect: "manual", headers: { accept: "text/html,*/*" } });
+    if (![404, 410].includes(retired.status) || retired.headers.get("location")) {
+      throw new Error(`${FAILURE}: obsolete Blogger runtime is still reachable`);
     }
   }
   return { ok: true };
@@ -81,10 +52,7 @@ if (invoked) {
     process.exitCode = 2;
   } else {
     verifyIndependentBlogger(process.argv[2])
-      .then(() => process.stdout.write("Independent Blogger verified\n"))
-      .catch((error) => {
-        process.stderr.write(`${error instanceof Error ? error.message : FAILURE}\n`);
-        process.exitCode = 1;
-      });
+      .then(() => process.stdout.write("Central Blogger gateway verified\n"))
+      .catch((error) => { process.stderr.write(`${error instanceof Error ? error.message : FAILURE}\n`); process.exitCode = 1; });
   }
 }
