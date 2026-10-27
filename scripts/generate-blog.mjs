@@ -115,6 +115,7 @@ function page({ title, description, canonical, body, tracker, lang = "es" }) {
   <title>${escapeHtml(title)}</title>
   <meta name="description" content="${escapeHtml(description)}">
   <link rel="canonical" href="${escapeHtml(canonical)}">
+  <script defer src="/language-analytics.js"></script>
   ${sharedStyles}${tracker}
 </head>
 <body>
