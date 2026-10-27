@@ -13,9 +13,9 @@
   "es": {
     "title": "Prueba de traducción automática",
     "description": "Un breve artículo de prueba para comprobar que la traducción automática funciona correctamente.",
-    "body": "<p>Este es un artículo de prueba para comprobar la traducción automática. No contiene información sobre el servicio. <img src=\"https://sportmassagefuengirola.com/blog/automatic-translation-test-2026-10-27/img/automatic-translation-test.svg\" alt=\"Abstract translation test graphic\"></p>",
+    "body": "<p>Este es un artículo de prueba para comprobar la traducción automática. No contiene información sobre el servicio.</p><p><img src=\"https://sportmassagefuengirola.com/blog/automatic-translation-test-2026-10-27/img/automatic-translation-test.svg\" alt=\"Gráfico abstracto para probar la traducción automática\" title=\"Una imagen abstracta neutra utilizada únicamente para comprobar las descripciones multilingües de imágenes.\"></p>",
     "format": "html",
-    "contentFingerprint": "e949296afd524f6c14de279eb7a614b7b5cac36dd5fc73a2e1c552ff1bd94ac1",
+    "contentFingerprint": "5274047451f9eeb5a6605b907733a42181f70e8e22a9cd03d7f16d70875c2843",
     "sourceFingerprint": "0f5f9a582dec82b80c0fe61886d5787ffe819b917a00c8efe390ad6ded5a9407",
     "reviewedSourceFingerprint": "",
     "reviewedContentFingerprint": "",
