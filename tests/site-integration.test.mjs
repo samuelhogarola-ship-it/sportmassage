@@ -48,22 +48,28 @@ test("the website repository contains no deployable Blogger authentication sidec
   assert.doesNotMatch(fs.readFileSync(path.join(root, "package.json"), "utf8"), /start:blogger|post-manager-server/);
 });
 
-test("committed public HTML is tracker-free and legal copy allows cookie-free Umami activation", () => {
+test("committed public HTML loads the verified consent-aware Umami configuration", () => {
   const pages = [
     "index.html",
     "legal.html",
     "blog/index.html",
+    "blog/automatic-translation-test-2026-10-27/index.html",
+    "blog/automatic-translation-test-2026-10-27/es/index.html",
+    "blog/automatic-translation-test-2026-10-27/fi/index.html",
     "propuesta/color-diferente/index.html",
     "propuesta/creativa/index.html",
     "propuesta/moderno/index.html",
   ];
   for (const file of pages) {
     const html = fs.readFileSync(path.join(root, file), "utf8");
-    assert.doesNotMatch(html, /data-website-id|<script[^>]+umami/i, file);
+    assert.match(html, /<script defer src="\/umami-loader\.js" data-website-id="59a72488-a454-4caf-962d-e9b4c2589710" data-script-url="https:\/\/analytics\.187\.124\.55\.36\.sslip\.io\/script\.js"><\/script>/, file);
+    assert.equal(html.match(/data-website-id=/g)?.length, 1, file);
+    assert.ok(html.indexOf('/umami-loader.js') < html.indexOf('/language-analytics.js'), file);
     const legacyCms = ["word", "press"].join("");
     assert.equal(html.toLowerCase().includes(legacyCms), false, file);
   }
   const legal = fs.readFileSync(path.join(root, "legal.html"), "utf8");
-  assert.match(legal, /Umami/);
+  assert.match(legal, /Umami analytics is active|Umami está activo|Umami-analytiikka on käytössä/);
   assert.match(legal, /sin cookies|without cookies|ilman evästeitä/i);
+  assert.doesNotMatch(fs.readFileSync(path.join(root, "admin/blogger/index.html"), "utf8"), /data-website-id|umami-loader/);
 });
