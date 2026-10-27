@@ -50,6 +50,9 @@ test("generator excludes drafts and creates stable canonical post URLs", async (
   assert.doesNotMatch(index, /borrador/);
   assert.match(article, /rel="canonical" href="https:\/\/sportmassagefuengirola\.com\/blog\/recuperacion-segura\/"/);
   assert.equal(fs.existsSync(path.join(paths.outputRoot, "borrador/index.html")), false);
+  assert.match(index, /<script defer src="\/language-analytics\.js"><\/script>/);
+  assert.match(article, /<script defer src="\/language-analytics\.js"><\/script>/);
+  assert.match(article, /<html lang="es">/);
 });
 
 test("generator escapes metadata and Markdown body HTML", async () => {

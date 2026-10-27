@@ -3,6 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <script defer src="/language-analytics.js"></script>
   <title>Sport Massage in Fuengirola – Fuengirola</title>
   <link rel="icon" href="favicon.ico" sizes="any">
   <link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
@@ -815,7 +816,7 @@ document.querySelectorAll('.reveal').forEach(el => observer.observe(el));
 
 <script>
 /* cookie-banner-core — inline (source: @lab-world/core feature/cookie-banner-core) */
-(function(){var b=function(c){var k=c.storageKey||'cookie_consent';if(localStorage.getItem(k))return;var i=c.imageSrc?'<div class="cookie-banner-img-container"><img src="'+c.imageSrc+'" alt="'+(c.imageAlt||'')+'" class="cookie-banner-img"></div>':'';var h='<div class="cookie-banner-wrapper"><div class="cookie-banner-card">'+i+'<h2>'+(c.title||'')+'</h2>'+(c.noticeHtml||'')+'<div class="cookie-banner-buttons"><button class="cb-reject cookie-btn btn-cookie-secondary">'+(c.rejectLabel||'Rechazar')+'</button><button class="cb-accept cookie-btn btn-cookie-primary">'+(c.acceptLabel||'Aceptar')+'</button></div><div class="cookie-banner-footer"><a href="'+(c.configUrl||c.policyUrl||'#')+'" class="cookie-config-link">'+(c.configLabel||'')+'</a></div></div></div>';var t=document.createElement('div');t.innerHTML=h;var w=t.firstChild;document.body.appendChild(w);w.style.display='block';w.querySelector('.cb-accept').addEventListener('click',function(){localStorage.setItem(k,'accepted');w.style.display='none';});w.querySelector('.cb-reject').addEventListener('click',function(){localStorage.setItem(k,'rejected');w.style.display='none';});};window.CookieBannerCore={init:b};})();
+(function(){var b=function(c){var k=c.storageKey||'cookie_consent';if(localStorage.getItem(k))return;var i=c.imageSrc?'<div class="cookie-banner-img-container"><img src="'+c.imageSrc+'" alt="'+(c.imageAlt||'')+'" class="cookie-banner-img"></div>':'';var h='<div class="cookie-banner-wrapper"><div class="cookie-banner-card">'+i+'<h2>'+(c.title||'')+'</h2>'+(c.noticeHtml||'')+'<div class="cookie-banner-buttons"><button class="cb-reject cookie-btn btn-cookie-secondary">'+(c.rejectLabel||'Rechazar')+'</button><button class="cb-accept cookie-btn btn-cookie-primary">'+(c.acceptLabel||'Aceptar')+'</button></div><div class="cookie-banner-footer"><a href="'+(c.configUrl||c.policyUrl||'#')+'" class="cookie-config-link">'+(c.configLabel||'')+'</a></div></div></div>';var t=document.createElement('div');t.innerHTML=h;var w=t.firstChild;document.body.appendChild(w);w.style.display='block';w.querySelector('.cb-accept').addEventListener('click',function(){localStorage.setItem(k,'accepted');window.dispatchEvent(new CustomEvent('smf:cookie-consent',{detail:'accepted'}));w.style.display='none';});w.querySelector('.cb-reject').addEventListener('click',function(){localStorage.setItem(k,'rejected');window.dispatchEvent(new CustomEvent('smf:cookie-consent',{detail:'rejected'}));w.style.display='none';});};window.CookieBannerCore={init:b};})();
 
 (function () {
   var lang = 'es';

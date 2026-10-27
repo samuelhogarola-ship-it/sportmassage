@@ -79,7 +79,7 @@ function trackerMarkup(websiteId, scriptUrl, productionVerified) {
     return "";
   }
   if (parsed.protocol !== "https:" || parsed.username || parsed.password) return "";
-  return `\n  <script defer src="${escapeHtml(parsed.href)}" data-website-id="${escapeHtml(websiteId)}"></script>`;
+  return `\n  <script defer src="/umami-loader.js" data-website-id="${escapeHtml(websiteId)}" data-script-url="${escapeHtml(parsed.href)}"></script>`;
 }
 
 const sharedStyles = `<style>
@@ -115,6 +115,7 @@ function page({ title, description, canonical, body, tracker, lang = "es" }) {
   <title>${escapeHtml(title)}</title>
   <meta name="description" content="${escapeHtml(description)}">
   <link rel="canonical" href="${escapeHtml(canonical)}">
+  <script defer src="/language-analytics.js"></script>
   ${sharedStyles}${tracker}
 </head>
 <body>

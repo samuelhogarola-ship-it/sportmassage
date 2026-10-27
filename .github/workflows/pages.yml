@@ -27,6 +27,18 @@ jobs:
       - name: Configure Pages
         uses: actions/configure-pages@v5
 
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Prepare verified cookie-free analytics
+        run: npm run prepare:pages
+        env:
+          UMAMI_WEBSITE_ID: 59a72488-a454-4caf-962d-e9b4c2589710
+          UMAMI_SCRIPT_URL: https://analytics.187.124.55.36.sslip.io/script.js
+          UMAMI_PRODUCTION_VERIFIED: "true"
+
       - name: Upload static site
         uses: actions/upload-pages-artifact@v3
         with:
