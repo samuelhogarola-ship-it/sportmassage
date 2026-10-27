@@ -6,7 +6,7 @@ date: 2026-10-27
 author: Sport Massage Fuengirola
 lang: en
 publish_languages: en,fi,es
-status: draft
+status: published
 content_format: markdown
 ---
 
